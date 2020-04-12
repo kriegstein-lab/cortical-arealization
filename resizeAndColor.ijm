@@ -1,8 +1,21 @@
 //srcdir = getDirectory("Choose a Directory...");
 srcdir = "/Users/carmensandoval/Desktop/imageJ_test/";
 
-git_file = File.openAsString("/Users/carmensandoval/Documents/GitHub/permanentheaddamagePHD/.git/FETCH_HEAD");
-git_sha = substring(git_file, 0, 7);
+git_candidate_sha = File.openAsString("/Users/carmensandoval/Documents/GitHub/permanentheaddamagePHD/.git/HEAD");
+// git_head_ref can contain either a git sha, or point to a file with the sha
+// Check to see if there is a slash, indicating it is a file, and get the sha
+// from that file
+if (indexOf(git_candidate_sha, "/") != -1) {
+  // If it is a file, it will be something like 'ref: refs/heads/master\n'
+  // Remove 'ref: '
+  git_candidate_sha = substring(git_candidate_sha, 5);
+  // Remove '\n'
+  git_candidate_sha = substring(git_candidate_sha, 0, lengthOf(git_candidate_sha) - 1);
+  // Read file to get sha
+  git_candidate_sha = File.openAsString("/Users/carmensandoval/Documents/GitHub/permanentheaddamagePHD/.git/" + git_candidate_sha);
+}
+// Truncate to get first 7 digits of the sha
+git_sha = substring(git_candidate_sha, 0, 7);
 dstdir = "/Users/carmensandoval/Box/KriegsteinLab/imaging/Fgf8_Organoids/processed/" + git_sha + "/";
 if (File.exists(dstdir)) {
   exit("Directory already exists!");
