@@ -1,11 +1,15 @@
 //srcdir = getDirectory("Choose a Directory...");
-//dstdir = getDirectory("Choose a Directory...");
 srcdir = "/Users/carmensandoval/Desktop/imageJ_test/";
-dstdir = "/Users/carmensandoval/Desktop/abcd/";
-setBatchMode(true);
-if (!File.exists(dstdir)) {
-	File.makeDirectory(dstdir);
+
+git_file = File.openAsString("/Users/carmensandoval/Documents/GitHub/permanentheaddamagePHD/.git/FETCH_HEAD");
+git_sha = substring(git_file, 0, 4);
+dstdir = "/Users/carmensandoval/Box/KriegsteinLab/imaging/Fgf8_Organoids/processed/" + git_sha + "/";
+if (File.exists(dstdir)) {
+  exit("Directory already exists!");
 }
+File.makeDirectory(dstdir);
+
+setBatchMode(true);
 processDirectory(srcdir, dstdir);
 
 function processDirectory(srcdir, dstdir) {
