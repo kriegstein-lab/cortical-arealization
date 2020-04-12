@@ -2,7 +2,7 @@
 srcdir = "/Users/carmensandoval/Desktop/imageJ_test/";
 
 git_file = File.openAsString("/Users/carmensandoval/Documents/GitHub/permanentheaddamagePHD/.git/FETCH_HEAD");
-git_sha = substring(git_file, 0, 4);
+git_sha = substring(git_file, 0, 7);
 dstdir = "/Users/carmensandoval/Box/KriegsteinLab/imaging/Fgf8_Organoids/processed/" + git_sha + "/";
 if (File.exists(dstdir)) {
   exit("Directory already exists!");
