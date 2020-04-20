@@ -1,5 +1,5 @@
 //srcdir = getDirectory("Choose a Directory...");
-srcdir = "/Users/carmensandoval/Desktop/imageJ_test/";
+srcdir = "/Users/carmensandoval/Fgf8_Organoids/02_CoupTF1_Sox2/02_34_H1_wk10_Fgf850-8wk/";
 
 git_candidate_sha = File.openAsString("/Users/carmensandoval/Documents/GitHub/permanentheaddamagePHD/.git/HEAD");
 // git_head_ref can contain either a git sha, or point to a file with the sha
@@ -64,8 +64,8 @@ function getBaseFilename(filename) {
 }
 
 function saveTif(dst_filename) {
-  //baseFileName = getBaseFilename(dst_filename);
-  //saveAs("TIFF", baseFileName + "_scaled");
+  baseFileName = getBaseFilename(dst_filename);
+  saveAs("TIFF", baseFileName + "_scaled60");
 }
 
 function savePng(dst_filename) {
@@ -77,13 +77,13 @@ function processChan00(src_filename, dst_filename) {
   openAndScale(src_filename);
   saveTif(dst_filename);
   
-  run("Brightness/Contrast...");
-  call("ij.ImagePlus.setDefault16bitRange", 12);
-  setMinAndMax(0, 4095);
-  run("mpl-inferno");
-  setMinAndMax(90, 1150);
+  // run("Brightness/Contrast...");
+  //call("ij.ImagePlus.setDefault16bitRange", 12);
+  // setMinAndMax(0, 4095);
+  // run("mpl-inferno");
+  // setMinAndMax(90, 1150);
   
-  savePng(dst_filename);
+  // savePng(dst_filename);
 }
 
 function processChan01(src_filename, dst_filename) {
