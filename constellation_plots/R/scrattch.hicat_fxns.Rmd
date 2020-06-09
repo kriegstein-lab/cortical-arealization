@@ -1,11 +1,15 @@
-# ______________________________________________________________________________
+---
+title: "Constellation Plots: Neocortex, 2nd Trimester" 
+subtitle: "All Samples, All cell types"
+---
 
-Functions from scrattch.hicat
+### Functions from scrattch.hicat
 --------------------------------------------------------------------------------
 
-## 1. `get_cl_df`: builds a dataframe from a named factor `cl`, 
+## 1. `get_cl_df`: builds a dataframe from a named factor `cl`
 whose values/levels = cluster labels and names = cell indexes.
 From annotate.R
+
 ```{r}
 get_cl_df <- function(cl) {
   
@@ -58,10 +62,11 @@ get_RD_cl_center <- function(rd.dat, cl) {
 #' @param knn.outlier.th 
 #' @param outlier.frac.th 
 
-get_knn_graph <- function(rd.dat, cl, cl.df, k=15, knn.outlier.th=2, outlier.frac.th=0.5) {
+get_knn_graph <- function(rd.dat, cl, cl.df, 
+                          k=15, knn.outlier.th = 2, outlier.frac.th = 0.5) {
   
-    knn.result = RANN::nn2(rd.dat, k = k)
-    # knn.result <- knn.result
+    # knn.result = RANN::nn2(rd.dat, k = k)
+    knn.result <- knn.result
     row.names(knn.result[[1]]) = row.names(knn.result[[2]]) = row.names(rd.dat)
     knn  = knn.result[[1]]
     knn.dist = knn.result[[2]]
@@ -112,7 +117,9 @@ get_knn_graph <- function(rd.dat, cl, cl.df, k=15, knn.outlier.th=2, outlier.fra
     # removed as.character from following 2 lines. Was not finding cluster label with rownames as character (number)
     knn.cl.df$cl.from.label = cl.df[knn.cl.df$cl.from, "cluster_label"]
     knn.cl.df$cl.to.label = cl.df[knn.cl.df$cl.to, "cluster_label"]
-    return(list(knn.result = knn.result, pred.result = pred.result, knn.cl.df = knn.cl.df))
+    return(list(knn.result = knn.result, pred.result = pred.result, 
+                knn.cl.df = knn.cl.df, 
+                knn.cell.cl.counts =knn.cell.cl.counts))
 }
 ```
 
@@ -698,60 +705,3 @@ angle <- function(x, y) {
         }
 ```
 
-
-
-Work I had done before
-----------------------------------------------------------------------------------------------------
-
-## Cell type sizes: dot plot
-```{r}
-counts <- 
-  ncx.clusters.allsamples %>% filter(!(cell.type == 0 | cell.type == "CR")) %>%
-    count(cell.type) %>% arrange(desc(n)) %>% 
-      mutate(n.log10 = log10(n), 
-             n.str = n %>% divide_by(1000) %>% round(1) %>% paste0("K"))
-
-ncx.clusters.allsamples$cell.type %<>% factor(levels = counts$cell.type)
-
-plots <- list(p1 = p1, p2 = p2)
-
-plots$p1 <- p1
-  
-  ggplot(counts, aes(x = cell.type, y = n)) +
-                     # y = n.log10)¡
-  ggtitle("2nd Trimester: All classified cells") +
-  theme_minimal() +
-  geom_point(aes(colour = cell.type, size = n), alpha = 0.8) + 
-  geom_text(aes(label = n.str), hjust = "left", nudge_x = 0.15, nudge_y = 0.08, size = 3) +
-  geom_text(aes(label = cell.type), hjust = "left", nudge_x = 0.15, nudge_y = 0.15, size = 2.5) +
-  scale_color_viridis_d(option = "C", end = 0.9) +
-  # scale_y_continuous(limits = c(3, 6)) +
-  scale_size_area(max_size = 20, limits = c(3000, 210000)) +
-  scale_y_log10("cell count, log10", labels = NULL) +
-  scale_x_discrete(labels = NULL) +
-  theme(legend.position = "none")
-  
-
-p2 <- ggplot(counts, aes(x = cell.type, y = n)) + 
-  geom_point(aes(colour = cell.type, size = n)) + 
-  geom_label(aes(n))
-
-# p3 <- ggplot(counts) + geom_point(aes(x = cell.type, y = n, size = n))
-                            
-grid.arrange(p1, p2, nrow = 1)
-```
-
-Clusters per cell type
-```{r}
-ncx.clusters %>% filter(!cell.type == 0) %>% group_by(cell.type) %>% summarise_each(n_distinct) %>% arrange(desc(combined.cluster.2))
-```
-
-Join cells' PCA coordinates with cluster assignments.
-```{r}
-pca.coords <- cells_projected_sig_PCAs %>% data.frame %>% rownames_to_column("cell.name")
-rm(cells_projected_sig_PCAs)
-
-pca.coords %<>% arrange(cell.name)
-ncx.clusters %<>% arrange(cell.name)
-ncx.clusters$cell.name %>% all.equal(pca.coords$cell.name)
-```
