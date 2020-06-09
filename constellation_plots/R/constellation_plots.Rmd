@@ -267,7 +267,9 @@ Neuron_3 cells with nearest neighbors in Neuron_8
 x <- cell.cl.counts %>% filter(cluster_label == "Neuron_3") %>% rename(neuron_8 = "44")
 
 median.nnCounts <- median(x$neuron_8[x$neuron_8 > 0], na.rm = TRUE)
+```
 
+```{r}
   ggplot(x) + 
     ggtitle("neuron_3 cells \n n/15 nearest neighbors in neuron_8") +
     
@@ -279,7 +281,6 @@ median.nnCounts <- median(x$neuron_8[x$neuron_8 > 0], na.rm = TRUE)
     xlab("# of neuron_8 neighbors") +
     ylab("") +
     theme_minimal() 
-    
 ```
 
 Compare cells above and below the median count of neuron_8 neighbors.
@@ -290,17 +291,16 @@ cells$below.median <- x %>% filter(neuron_8 < median)  %>% pull(cell.name)
 
 s.obj <- SetIdent(Neocortex, cells = cells$above.median, value = 'nn_above_med') %>% 
           SetIdent(cells = cells$below.median, value = 'nn_below_med')
-# levels(s.obj)
+
 markers <- list()
 markers$nn_above_med <- FindMarkers(s.obj, slot = "scale.data", 
                                   # cells.1 = cells$above.median, cells.2 = cells$below.median,
                                   ident.1 = "nn_above_med", ident.2 = "nn_below_med", 
                                   logfc.threshold = 0)
-
-write_tsv(markers$nn_above_med, "../out/DEgenes_neuron3_vs_neuron8.tsv")
 ```
 
 Calculate enrichment ratio, filter genes w. adj p-value < 0.05, sort table.
+Positive values indicate that the feature is more highly expressed in the first group.
 ```{r filter-markers, echo=TRUE}
 
 markers.tmp <- markers$nn_above_med %>% rownames_to_column("gene") %>%
@@ -311,10 +311,12 @@ markers.tmp <- markers$nn_above_med %>% rownames_to_column("gene") %>%
   filter(p_val_adj <= 0.05) %>% 
   select(gene, pct.1, pct.2, enrich.ratio, avg_diff, gene.score, p_val_adj) %>%
   arrange(desc(gene.score))
+
+write_tsv(markers.tmp, "../out/DEgenes_neuron3_vs_neuron8.tsv")
 ```
 
 ```{r render-table}
-  reactable(markers.tmp, defaultPageSize = 100,
+reactable(markers.tmp, defaultPageSize = 100,
           showSortable = TRUE, resizable = TRUE, highlight = TRUE, filterable = TRUE, minRows = 10,
           style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px")
   )
@@ -334,11 +336,10 @@ xtab_set(markers$nn_above_med$geme, markers$nn_below_med$gene)
 ```
 
 Make heatmap:
-```{r heatmap, echo=TRUE, fig.height=4, fig.width=6}
+```{r heatmap}
 tmp.sobj <- subsetSeurat(s.obj, cells.keep = flatten_chr(cells))
 
 min(tmp.sobj@assays$RNA@scale.data)
-
 
 heatmap <- 
   DoHeatmap(tmp.sobj, 
@@ -347,14 +348,13 @@ heatmap <-
             # filter(pct.1 > 0.25) %>% filter(pct.2 < 0.2) %>% 
             pull(gene),
           disp.min = -2,
-          disp.max = 5,
+          disp.max = 7,
           angle = 0
           # slot = "data"
           # slim.col.label = TRUE,
           # remove.key = TRUE
 ) +
-  theme(l
-    legend.text = element_text(size = 8),
+  theme(legend.text = element_text(size = 8),
     #legend.position = "none",
         text = element_text(size = 5),
           
@@ -362,9 +362,9 @@ heatmap <-
   ) +
     scale_fill_viridis(end = 1, na.value = 'white', option = "magma", discrete = FALSE)
 
-ggsave(filename = "../DEgenes_neuron3_vs_neuron8_heatmap.pdf", width = 6, height = 4, units = "in" )
+# ggsave(filename = "../DEgenes_neuron3_vs_neuron8_heatmap.pdf", width = 6, height = 4, units = "in" )
 
-ggplotly(heatmap, tooltip = "Feature")
+ggplotly(heatmap, tooltip = "Feature") %>% layout(autosize = F, width = 1000, height = 500)
 
 ```
 
