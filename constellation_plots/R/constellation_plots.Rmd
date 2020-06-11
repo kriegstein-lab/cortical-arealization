@@ -2,42 +2,26 @@
 title: "Constellation Plots: Neocortex, 2nd Trimester" 
 subtitle: "All Samples, All cell types"
 output: html_notebook
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r global_options, include=FALSE}
-knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
-                      echo=FALSE, warning=FALSE, message=FALSE)
+
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path = 'Figs/',
+                      echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
 ```{r, echo=FALSE}
-reactable <- function(...) {
-  htmltools::tagList(reactable::reactable(...))
-}
-
-setwd("~/permanentheaddamagePHD/constellation_plots/R/")
-# attach(.env)
-
-# source("../../../code_general/setup_R_session_CSE.R")
 source_rmd("scrattch.hicat_fxns.Rmd")
-
-source_rmd <- function(file, local = FALSE, ...){
-  options(knitr.duplicate.label = 'allow')
-
-  tempR <- tempfile(tmpdir = ".", fileext = ".R")
-  on.exit(unlink(tempR))
-  knitr::purl(file, output=tempR, quiet = TRUE)
-
-  envir <- globalenv()
-  source(tempR, local = envir, ...)
-}
 ```
 
-# LOAD DATA.
-# ______________________________________________________________________________
+# Load data
+*** 
 
 • Neocortex_v3.RData
 Not necessary if just plotting on already calculated PCA, UMAP, clusters.
-```{r eval = FALSE, echo=TRUE}
+```{r load-neocortex, eval = FALSE, echo=TRUE}
 # Full dataset:
 load("../data/cfc4b2_neocortex_v3.RData")
 
@@ -49,7 +33,7 @@ ncx.exn.100k <- read_rds("../data/exn_lineage/toy/ncx.v3.exn.sub_100k.rds")
 ```
 
 • Cluster / marker tables.
-```{r paged.print=TRUE}
+```{r load-tbls,  echo=TRUE, paged.print=TRUE}
 ncx.clusters <- read_delim("../tbls/83d19_Neocortex_allindividuals_combinedclusters_v1.txt",
                               "\t", escape_double = FALSE, trim_ws = TRUE)
 
@@ -57,15 +41,14 @@ ncx.markers <- read_delim("../tbls/8f0fc_Neocortex_subset1_clustermarkers_combo2
                   "\t", escape_double = FALSE, trim_ws = TRUE)
 ```
 
-# ********************************************************************
-# 1. START `scrattch.hicat` functions to build constellation plots.
-# ********************************************************************
+***
+
+# `scrattch.hicat` steps to build constellation plots.
 
 ## 1. Define cells to build the plot from.
 [All cells: 404.2K]
   
-### a. All clusters / cell types:
-
+## a. All clusters / cell types:
 Keep only cells with *_combo2_* `$combined.cluster.2` annotation.
 ```{r eval=FALSE}
 
@@ -88,7 +71,23 @@ cells.cl.df <- ncx.clusters.exn <-
                   ncx.clusters %>% 
                       filter(str_detect(combined.cluster.2, "combo2") ) %>% 
                         filter(str_detect(combined.cluster.2, "Neuron|CR|Dividing|RG|IPC|OPC") )
+
+
+s.obj <- Neocortex %>% subsetSeurat(cells.keep = cells.cl.df$cell.name)
+
+# Remove @counts slot (5GB)
+s.obj@assays$RNA@counts <- matrix(c(0,0))
 # 271.4K cells in excitatory lineage.
+
+# Sanity check:
+cells.cl.df$cell.name %>% identical(s.obj@meta.data %>% rownames)
+# [TRUE]
+
+s.obj@meta.data <- left_join(x = s.obj@meta.data %>% select(-orig.ident) %>% rownames_to_column("cell.name"),
+                            y = cells.cl.df[ , c("cell.name", "combined.cluster.2")]) %>% 
+                      set_rownames(.$cell.name)
+
+write_rds(s.obj, "../data/exn_lineage/neocortex_exn_lineage_271k.rds", compress = "gz")
 ```
 
 ### b.1. Cells in exn linage 100k cell toy object:
@@ -99,6 +98,7 @@ s.obj <- ncx.exn.100k
 cells.cl.df <- ncx.clusters %>% 
                   filter(cell.name %in% rownames(s.obj@meta.data) )
 ```
+
 
 ## 2. Build dataframes for constellation plots.
 
@@ -188,7 +188,7 @@ rm(rd.dat, ncx.clusters)
 ```
 
 ## 3. Make constellation plot
-```{r eval=FALSE}
+```{r make-constellation, eval = FALSE}
 # Keep only cells where $frac [fraction of cells in cluster with nearest neighbors in different cluster] >= 0.05.
 # Defined in `get_knn_graph`: 
 # knn.cl.df$frac = knn.cl.df$Freq / knn.cl.df$cl.from.total
@@ -210,9 +210,9 @@ cl.plot <- plot_constellation(knn.cl.df, cl.center.df, out.dir = "../out",
 
 ```
 
-# ------------------------------------------------------------------------------
+***
 # 2. Find DE genes between connected clusters.
-# ------------------------------------------------------------------------------
+***
 ```{r}
 # Dataframe w/ the proportion of k(15) nearest neighbors in each cluster for every cell.
 nn.cl.df <- knn.cl$pred.result$pred.prob %>% as.data.frame
@@ -263,35 +263,64 @@ x %>% filter(freq > 0) %>%
 ```
 
 Neuron_3 cells with nearest neighbors in Neuron_8
-```{r echo=TRUE}
-x <- cell.cl.counts %>% filter(cluster_label == "Neuron_3") %>% rename(neuron_8 = "44")
-
-median.nnCounts <- median(x$neuron_8[x$neuron_8 > 0], na.rm = TRUE)
-```
+`cell.cl.counts` is a matrix of all cells and their counts of nearest neighbors in each cluster.
 
 ```{r}
+cell.cl.counts <- knn.cl$knn.cell.cl.counts %>% as.data.frame.matrix %>% rownames_to_column("cell.name")
+
+cell.cl.counts <- left_join(cells.cl.df, cell.cl.counts,  by = "cell.name") %>%
+  select(-cell.type) %>% mutate(combined.cluster.2 = str_remove(combined.cluster.2, "_combo2")) %>%
+  rename(cluster_label = "combined.cluster.2")
+
+
+names(cell.cl.counts)[4:nrow(cell.cl.counts)] %<>% paste0("cl_", .)
+```
+
+# Find cells in `cluster_a` with bearest neighbors in `cluster_b`
+```{r echo=TRUE}
+cluster_a <- "IPC_6"
+cluster_b <- "IPC_3"
+
+cluster_b_col <- cell.cl.counts %>% filter(cluster_label == cluster_b) %>% 
+                .$cluster_id %>% as.numeric %>% unique %>% paste0("cl_", .)
+
+
+x <- cell.cl.counts %>% filter(cluster_label == cluster_a) %>% replace(is.na(.), 0)
+
+nn.counts <- x[[cluster_b_col]]
+n.cells <- length(x$cell.name)
+sum(nn.counts > 0)
+sum(nn.counts == 0)
+
+(median.nnCounts <- median(nn.counts[nn.counts > 0]))
+```
+
+Distribution of neighbor counts in cluster_b for cells in a given cluster_a.
+Use this to find the point at which cells will be split into comparison groups.
+```{r}
   ggplot(x) + 
-    ggtitle("neuron_3 cells \n n/15 nearest neighbors in neuron_8") +
+    ggtitle(paste(cluster_a, "cells \n n/k=15 nearest neighbors in", cluster_b)) +
     
-    geom_bar(aes(x = neuron_8)) +
+    geom_bar(aes(x = get(cluster_b_col))) +
     geom_vline(xintercept = median.nnCounts, colour = "red") +
-    annotate("text", x = median.nnCounts + 1, y = 70,
+    annotate("text", x = median.nnCounts + 1, y = quantile(1: n.cells, .07),
              label = paste0("median = ", median.nnCounts)
   ) + 
-    xlab("# of neuron_8 neighbors") +
+    xlab(paste("# of", cluster_b, "neighbors")) +
     ylab("") +
     theme_minimal() 
 ```
 
-Compare cells above and below the median count of neuron_8 neighbors.
+Compare cells above and below the median count of `cluster_b` neighbors.
 ```{r echo=TRUE}
 cells <- list()
-cells$above.median <- x %>% filter(neuron_8 > median) %>% pull(cell.name)
-cells$below.median <- x %>% filter(neuron_8 < median)  %>% pull(cell.name)
+cells$above.median <- x %>% filter(get(cluster_b_col) > median) %>% pull(cell.name)
+cells$below.median <- x %>% filter(get(cluster_b_col) < median)  %>% pull(cell.name)
 
-s.obj <- SetIdent(Neocortex, cells = cells$above.median, value = 'nn_above_med') %>% 
-          SetIdent(cells = cells$below.median, value = 'nn_below_med')
+s.obj <- SetIdent(s.obj, cells = cells$above.median, value = 'nn_ct_above_med') %>% 
+          SetIdent(cells = cells$below.median, value = 'nn_ct_below_med')
 
+table(s.obj@active.ident) %>% as.data.frame.matrix()
 markers <- list()
 markers$nn_above_med <- FindMarkers(s.obj, slot = "scale.data", 
                                   # cells.1 = cells$above.median, cells.2 = cells$below.median,
@@ -341,31 +370,59 @@ tmp.sobj <- subsetSeurat(s.obj, cells.keep = flatten_chr(cells))
 
 min(tmp.sobj@assays$RNA@scale.data)
 
+markers.plot <- markers.tmp  %>% filter(enrich.ratio >= 1.3 | enrich.ratio <= 0.7) %>% arrange(desc(enrich.ratio))
+
+exp.plot <- tmp.sobj@assays$RNA@scale.data[markers.plot$gene, ]
+
+(exp.limits <- exp.plot %>% as.numeric %>%  quantile(c(0, 0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 0.99, 1)))
+
 heatmap <- 
   DoHeatmap(tmp.sobj, 
           # cells = flatten_chr(cells),
-          features = markers.tmp %>% 
-            # filter(pct.1 > 0.25) %>% filter(pct.2 < 0.2) %>% 
-            pull(gene),
-          disp.min = -2,
-          disp.max = 7,
+          features =  markers.plot$gene,
+          disp.min = exp.limits["1%"],
+          disp.max = exp.limits["99%"],
           angle = 0
           # slot = "data"
           # slim.col.label = TRUE,
           # remove.key = TRUE
 ) +
   theme(legend.text = element_text(size = 8),
+        legend.position = "bottom",
     #legend.position = "none",
-        text = element_text(size = 5),
-          
-        # aspect.ratio = c(1,2)
+        text = element_text(size = 8),
+        aspect.ratio = c(2,1)
   ) +
     scale_fill_viridis(end = 1, na.value = 'white', option = "magma", discrete = FALSE)
 
 # ggsave(filename = "../DEgenes_neuron3_vs_neuron8_heatmap.pdf", width = 6, height = 4, units = "in" )
 
-ggplotly(heatmap, tooltip = "Feature") %>% layout(autosize = F, width = 1000, height = 500)
+p <- ggplotly(heatmap, tooltip = "Feature", width = 1000, height = 800) %>% layout(legend = list(yanchor = 'bottom', orientation = 'h')) %>% partial_bundle() 
 
+plotly_json(p)
+p$x$data[c(2,3)] <- NULL
+
+  saveWidget("~/carmensandoval.github.io/arklab/2nd-tri/clustering/DEgenes_neuron3_vs_neuron8_heatmap.html", selfcontained = TRUE)
 ```
 
+Extra functions
+```{r functions}
+.env$source_rmd <- function(file, local = FALSE, ...){
+  options(knitr.duplicate.label = 'allow')
 
+  tempR <- tempfile(tmpdir = ".", fileext = ".R")
+  on.exit(unlink(tempR))
+  knitr::purl(file, output = tempR, quiet = TRUE)
+
+  envir <- globalenv()
+  source(tempR, local = envir, ...)
+}
+
+.env$reactable <- function(...) {
+  htmltools::tagList(reactable::reactable(...))
+}
+
+# source("../../../code_general/setup_R_session_CSE.R")
+
+attach(.env)
+```
