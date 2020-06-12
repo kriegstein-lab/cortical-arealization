@@ -74,20 +74,20 @@ cells.cl.df <- ncx.clusters.exn <-
 
 
 s.obj <- Neocortex %>% subsetSeurat(cells.keep = cells.cl.df$cell.name)
+# 271.4K cells in excitatory lineage.
 
 # Remove @counts slot (5GB)
-s.obj@assays$RNA@counts <- matrix(c(0,0))
-# 271.4K cells in excitatory lineage.
+# s.obj@assays$RNA@counts <- matrix(c(0,0))
 
 # Sanity check:
 cells.cl.df$cell.name %>% identical(s.obj@meta.data %>% rownames)
 # [TRUE]
 
 s.obj@meta.data <- left_join(x = s.obj@meta.data %>% select(-orig.ident) %>% rownames_to_column("cell.name"),
-                            y = cells.cl.df[ , c("cell.name", "combined.cluster.2")]) %>% 
+                             y = cells.cl.df[ , c("cell.name", "combined.cluster.2")]) %>% 
                       set_rownames(.$cell.name)
 
-write_rds(s.obj, "../data/exn_lineage/neocortex_exn_lineage_271k.rds", compress = "gz")
+# write_rds(s.obj, "../data/exn_lineage/neocortex_exn_lineage_271k.rds", compress = "gz")
 ```
 
 ### b.1. Cells in exn linage 100k cell toy object:
@@ -262,8 +262,8 @@ x %>% filter(freq > 0) %>%
   ggplot() + geom_density(aes(freq))
 ```
 
-Neuron_3 cells with nearest neighbors in Neuron_8
-`cell.cl.counts` is a matrix of all cells and their counts of nearest neighbors in each cluster.
+## `cluster_a` cells with nearest neighbors in `cluster_b`
+`cell.cl.counts`: matrix of all cells and their counts of nearest neighbors in each cluster.
 
 ```{r}
 cell.cl.counts <- knn.cl$knn.cell.cl.counts %>% as.data.frame.matrix %>% rownames_to_column("cell.name")
@@ -273,10 +273,10 @@ cell.cl.counts <- left_join(cells.cl.df, cell.cl.counts,  by = "cell.name") %>%
   rename(cluster_label = "combined.cluster.2")
 
 
-names(cell.cl.counts)[4:nrow(cell.cl.counts)] %<>% paste0("cl_", .)
+names(cell.cl.counts)[4:ncol(cell.cl.counts)] %<>% paste0("cl_", .)
 ```
 
-# Find cells in `cluster_a` with bearest neighbors in `cluster_b`
+# Find cells in `cluster_a` with nearest neighbors in `cluster_b`
 ```{r echo=TRUE}
 cluster_a <- "IPC_6"
 cluster_b <- "IPC_3"
@@ -288,11 +288,17 @@ cluster_b_col <- cell.cl.counts %>% filter(cluster_label == cluster_b) %>%
 x <- cell.cl.counts %>% filter(cluster_label == cluster_a) %>% replace(is.na(.), 0)
 
 nn.counts <- x[[cluster_b_col]]
-n.cells <- length(x$cell.name)
-sum(nn.counts > 0)
-sum(nn.counts == 0)
 
-(median.nnCounts <- median(nn.counts[nn.counts > 0]))
+df <- list(
+n.cells.clust.a = length(x$cell.name),
+with.neighbors = sum(nn.counts > 0),
+no.neighbors = sum(nn.counts == 0),
+median.nnCounts = median(nn.counts[nn.counts > 0])
+)
+
+as.tibble(df)
+
+
 ```
 
 Distribution of neighbor counts in cluster_b for cells in a given cluster_a.
@@ -312,39 +318,52 @@ Use this to find the point at which cells will be split into comparison groups.
 ```
 
 Compare cells above and below the median count of `cluster_b` neighbors.
-```{r echo=TRUE}
+```{r findmarkers, echo=TRUE}
 cells <- list()
-cells$above.median <- x %>% filter(get(cluster_b_col) > median) %>% pull(cell.name)
-cells$below.median <- x %>% filter(get(cluster_b_col) < median)  %>% pull(cell.name)
+cells$above.median <- x %>% filter(get(cluster_b_col) > median.nnCounts) %>% pull(cell.name)
+cells$below.median <- x %>% filter(get(cluster_b_col) < median.nnCounts)  %>% pull(cell.name)
 
-s.obj <- SetIdent(s.obj, cells = cells$above.median, value = 'nn_ct_above_med') %>% 
-          SetIdent(cells = cells$below.median, value = 'nn_ct_below_med')
+cells$other <- setdiff(s.obj@meta.data$cell.name, flatten_chr(cells))
 
-table(s.obj@active.ident) %>% as.data.frame.matrix()
-markers <- list()
-markers$nn_above_med <- FindMarkers(s.obj, slot = "scale.data", 
-                                  # cells.1 = cells$above.median, cells.2 = cells$below.median,
-                                  ident.1 = "nn_above_med", ident.2 = "nn_below_med", 
+
+s.obj <- SetIdent(object = s.obj, cells = cells$above.median, value = 'nn_ct_above_med') %>% 
+                SetIdent(cells = cells$below.median, value = 'nn_ct_below_med') %>%
+                SetIdent(cells = cells$other, value = 'other')
+
+cells <- cells[1:2]
+
+s.obj@active.ident %>% table %>% as.data.frame()
+# nn_ct_below_med	7594			
+# nn_ct_above_med	2557	
+
+# Make sure @counts slot is present for slot = "scale.data" to work.
+markers <- FindMarkers(s.obj, slot = "scale.data",
+                          # features = s.obj@assays$RNA@var.features,
+                                  ident.1 = "nn_ct_above_med", 
+                                  ident.2 = "nn_ct_below_med", 
                                   logfc.threshold = 0)
+
 ```
 
 Calculate enrichment ratio, filter genes w. adj p-value < 0.05, sort table.
 Positive values indicate that the feature is more highly expressed in the first group.
 ```{r filter-markers, echo=TRUE}
-
-markers.tmp <- markers$nn_above_med %>% rownames_to_column("gene") %>%
+markers.tmp <- markers %>% rownames_to_column("gene") %>%
   mutate(enrich.ratio = pct.1 / pct.2,
-         gene.score = avg_diff * enrich.ratio,
-         across(.cols = where(is.numeric), .fns = round, digits = 5)
+         gene.score = avg_diff * enrich.ratio
+         # , across(.cols = where(is.numeric), .fns = round, digits = 4)
   ) %>%
   filter(p_val_adj <= 0.05) %>% 
-  select(gene, pct.1, pct.2, enrich.ratio, avg_diff, gene.score, p_val_adj) %>%
+  select(gene, pct.1, pct.2, enrich.ratio, avg_diff, gene.score, avg_diff) %>%
   arrange(desc(gene.score))
 
-write_tsv(markers.tmp, "../out/DEgenes_neuron3_vs_neuron8.tsv")
+markers.tmp[2:6] %<>% round(5)
+
+write_tsv(markers.tmp, path =  paste0("../out/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data.tsv"))
+
 ```
 
-```{r render-table}
+```{r reactable-table}
 reactable(markers.tmp, defaultPageSize = 100,
           showSortable = TRUE, resizable = TRUE, highlight = TRUE, filterable = TRUE, minRows = 10,
           style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px")
@@ -361,35 +380,37 @@ xtab_set <- function(A,B){
               inB     <-  both %in% B
               return(table(inA,inB))
             }
-xtab_set(markers$nn_above_med$geme, markers$nn_below_med$gene)
+# xtab_set(markers$nn_above_med$geme, markers$nn_below_med$gene)
 ```
 
 Make heatmap:
-```{r heatmap}
-tmp.sobj <- subsetSeurat(s.obj, cells.keep = flatten_chr(cells))
+```{r build-heatmap}
+# Filter markers by enrichment ratio.
+markers.to.plot <- markers.tmp %>% filter(enrich.ratio >= 1.3 | enrich.ratio <= 0.7) %>% 
+  arrange(desc(enrich.ratio)) %>% pull(gene)
 
-min(tmp.sobj@assays$RNA@scale.data)
+cells.to.plot <- flatten_chr(cells)
 
-markers.plot <- markers.tmp  %>% filter(enrich.ratio >= 1.3 | enrich.ratio <= 0.7) %>% arrange(desc(enrich.ratio))
+message(paste("Building heatmap for", length(markers.to.plot), "genes and", length(cells.to.plot), "cells."))
 
-exp.plot <- tmp.sobj@assays$RNA@scale.data[markers.plot$gene, ]
-
-(exp.limits <- exp.plot %>% as.numeric %>%  quantile(c(0, 0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 0.99, 1)))
+# Get 1st and 99th percentiles to choose the limits for color scale. (clip outliers)
+(exp.limits <- s.obj@assays$RNA@scale.data[markers.to.plot, cells.to.plot] %>% as.numeric %>%
+                  quantile(c(0, 0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 0.99, 1)))
 
 heatmap <- 
-  DoHeatmap(tmp.sobj, 
-          # cells = flatten_chr(cells),
-          features =  markers.plot$gene,
+  DoHeatmap(s.obj, 
+          cells = cells.to.plot,
+          features =  markers.to.plot,
           disp.min = exp.limits["1%"],
           disp.max = exp.limits["99%"],
-          angle = 0
-          # slot = "data"
+          angle = 0,
+          slot = "scale.data"
           # slim.col.label = TRUE,
           # remove.key = TRUE
-) +
+  ) +
   theme(legend.text = element_text(size = 8),
         legend.position = "bottom",
-    #legend.position = "none",
+        #legend.position = "none",
         text = element_text(size = 8),
         aspect.ratio = c(2,1)
   ) +
@@ -397,12 +418,17 @@ heatmap <-
 
 # ggsave(filename = "../DEgenes_neuron3_vs_neuron8_heatmap.pdf", width = 6, height = 4, units = "in" )
 
-p <- ggplotly(heatmap, tooltip = "Feature", width = 1000, height = 800) %>% layout(legend = list(yanchor = 'bottom', orientation = 'h')) %>% partial_bundle() 
+p <- ggplotly(heatmap, tooltip = "Feature", width = 1000, height = 800) %>% 
+      layout(legend = list(yanchor = 'bottom', orientation = 'h')) %>% partial_bundle()
 
-plotly_json(p)
+
+# Remove group key.
+# plotly_json(p)
 p$x$data[c(2,3)] <- NULL
 
-  saveWidget("~/carmensandoval.github.io/arklab/2nd-tri/clustering/DEgenes_neuron3_vs_neuron8_heatmap.html", selfcontained = TRUE)
+# saveWidget("~/carmensandoval.github.io/arklab/2nd-tri/clustering/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data.html", selfcontained = TRUE)
+
+saveWidget("../out/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data_heatmap.html", selfcontained = TRUE)
 ```
 
 Extra functions
