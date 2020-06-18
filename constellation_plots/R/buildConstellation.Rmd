@@ -1,0 +1,117 @@
+---
+title: "Constellation Plots" 
+---
+
+# 1. Build dataframes for constellation plots.
+
+1
+```{r cl}
+
+cl <- cells.cl.df$combined.cluster.2 %>% as.factor %>% 
+  set_names(cells.cl.df$cell.name)
+# 128 clusters in all _combo2_ cells
+# 77 clusters in all _combo2_ & ExN lineage cells.
+```
+
+2
+```{r rd.dat}
+
+rd.dat <- list(umap = s.obj@reductions$umap@cell.embeddings,
+               pca = s.obj@reductions$pca@cell.embeddings)
+
+# Subset UMAP and PCA cell embeddings: keep only cells in ncx.clusters.
+# (Exclude cells in cluster 0 and keep only cells with "combo2" in combined cluster 2 name.)
+# rd.dat %<>% lapply(function(x) x[names(cl), ])
+```
+
+3
+```{r cl.df}
+
+cl.df <- get_cl_df(cl)
+
+cl.df$clade <- str_split_fixed(cl.df$cluster_label, "_", 2)[ ,1] %>% tolower 
+# Add clade_id, clade_color to cl.df
+clade.cols <- data.frame(# clade = unique(cl.df$clade),
+  cluster_color = c("cr"= "darkgrey", 
+                    "dividing" = "darkkhaki", 
+                    "neuron" = "deepskyblue", 
+                    "inteneuron" = "deeppink2", 
+                    "ipc" = "brown4", 
+                    "microglia" = "darkorchid1",
+                    "opc" = "cadetblue", 
+                    "other" = "darkslateblue", 
+                    "rg" = "darkorange", 
+                    "vascular" = "blanchedalmond")
+) %>% rownames_to_column("clade")
+
+cl.df %<>% left_join(clade.cols)
+rm(clade.cols)
+
+# cells.cl.df: Add cluster_id column from cl.df; remove unused columns. 
+cells.cl.df <- left_join(cells.cl.df %>% select(cell.name, cell.type, combined.cluster.2),
+                         cl.df %>% select(cluster_label, cluster_id), 
+                         by = c("combined.cluster.2" = "cluster_label")
+) %>% mutate(cluster_id = as.factor(cluster_id))
+```
+
+4 Find cluster centers from UMAP coordinates
+```{r rd.cl.center}
+
+rd.cl.center <- get_RD_cl_center(rd.dat$umap, cl) 
+
+rd.cl.center %<>% 
+  as.data.frame %>% 
+  set_names(c("x", "y")) %>%
+  add_column(cl = 1:nrow(rd.cl.center), .before = "x") %>%
+  # add_column preserves rownames.
+  # but moving rownames to column cluster_label anyway bc of left_join below.
+  rownames_to_column("cluster_label")
+```
+
+5 Join `cl.df` and `rd.cl.center` into `cl.center.df` for input into `get_KNN_graph`.
+```{r cl.center.df}
+
+cl.center.df <- left_join(rd.cl.center, cl.df,
+                          by = c("cluster_label")) 
+```
+
+6
+```{r knn.cl}
+# Fixes needed for proper output of knn.cl.df
+# cl.center.df %<>% rename(cluster_size = "size")
+# levels(cl) <- cl.df$cluster_id
+cl.numeric <- cl
+levels(cl.numeric) <- cl.df$cluster_id
+
+knn.result <- RANN::nn2(data = rd.dat$pca[, 1:10], k = 15)
+
+knn.cl <- get_knn_graph(rd.dat = rd.dat$pca[ , 1:10], 
+                        cl.df =  cl.df, cl = cl.numeric, 
+                        k = 15, 
+                        knn.outlier.th = 2, outlier.frac.t = 0.5)
+
+rm(rd.dat, ncx.clusters)
+```
+
+# 2. Make constellation plot
+```{r make-constellation}
+# Keep only cells where $frac [fraction of cells in cluster with nearest neighbors in different cluster] >= 0.05.
+# Defined in `get_knn_graph`: 
+# knn.cl.df$frac = knn.cl.df$Freq / knn.cl.df$cl.from.total
+# 10% : 213 edges
+knn.cl.df <- knn.cl$knn.cl.df  %>% filter(frac >= 0.1)
+
+# Plot only edges between ExN lineage clusters.
+# knn.cl.df %<>% filter_at(vars(cl.from.label, cl.to.label), 
+#                        all_vars(str_detect(., "RG|IPC|Neuron|OPC|Dividing"))
+#              )
+
+# cl.center.df$cluster_label %<>% str_remove("_combo2")
+
+cl.plot <- plot_constellation(knn.cl.df, cl.center.df, out.dir = "../out",
+                              node.label = "cluster_label", exxageration = 1, curved = TRUE, 
+                              plot.parts = FALSE, plot.hull = NULL, 
+                              plot.height = 40, plot.width = 40,
+                              node.dodge = TRUE, label.size = 2, max_size = 20)
+
+```
