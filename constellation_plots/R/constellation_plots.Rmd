@@ -12,9 +12,7 @@ knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path = 'Figs/',
                       echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
-```{r, echo=FALSE}
-source_rmd("scrattch.hicat_fxns.Rmd")
-```
+
 
 # Load data
 *** 
@@ -23,7 +21,7 @@ source_rmd("scrattch.hicat_fxns.Rmd")
 Not necessary if just plotting on already calculated PCA, UMAP, clusters.
 ```{r load-neocortex, eval = FALSE, echo=TRUE}
 # Full dataset:
-load("../data/cfc4b2_neocortex_v3.RData")
+ncx.exn <- read_rds("../data/exn_lineage/neocortex_exn_lineage_271k.rds")
 
 # 40k random subset (toy dataset)
 # ncx.40k <- read_rds("constellation_plots/ncx_v3_40k.rds")
@@ -44,11 +42,13 @@ ncx.markers <- read_delim("../tbls/8f0fc_Neocortex_subset1_clustermarkers_combo2
 ***
 
 # `scrattch.hicat` steps to build constellation plots.
+Calls `buildConstellation.Rmd`.
 
 ## 1. Define cells to build the plot from.
-[All cells: 404.2K]
   
-## a. All clusters / cell types:
+### a. All clusters / cell types:
+[All cells: 404.2K]
+
 Keep only cells with *_combo2_* `$combined.cluster.2` annotation.
 ```{r eval=FALSE}
 
@@ -90,129 +90,33 @@ s.obj@meta.data <- left_join(x = s.obj@meta.data %>% select(-orig.ident) %>% row
 # write_rds(s.obj, "../data/exn_lineage/neocortex_exn_lineage_271k.rds", compress = "gz")
 ```
 
-### b.1. Cells in exn linage 100k cell toy object:
+***
+# 2. Build dataframes and plot.
 ```{r}
-# Define which object the constellation plot is based on:
-s.obj <- ncx.exn.100k
-
-cells.cl.df <- ncx.clusters %>% 
-                  filter(cell.name %in% rownames(s.obj@meta.data) )
+ncx.exn@meta.data
 ```
 
-
-## 2. Build dataframes for constellation plots.
-
-### 1. `cl` 
 ```{r}
-cl <- cells.cl.df$combined.cluster.2 %>% as.factor %>% 
-          set_names(cells.cl.df$cell.name)
-# 128 clusters in all _combo2_ cells
-# 77 clusters in all _combo2_ & ExN lineage cells.
+rd.dat <- list(umap = ncx.exn@reductions$umap@cell.embeddings,
+               pca = ncx.exn@reductions$pca@cell.embeddings)
+
+cells.cl.df <- ncx.exn@meta.data
+
+rmarkdown::render("buildConstellation.Rmd", 
+                  params = list(cells.cl.df = cells.cl.df,
+                                rd.dat = rd.dat,
+                                 groups.col = "group"
+                                 )
+)
 ```
 
-### 2. `rd.dat`
 ```{r}
-rd.dat <- list(umap = s.obj@reductions$umap@cell.embeddings,
-               pca = s.obj@reductions$pca@cell.embeddings)
-
-# Subset UMAP and PCA cell embeddings: keep only cells in ncx.clusters.
-# (Exclude cells in cluster 0 and keep only cells with "combo2" in combined cluster 2 name.)
-# rd.dat %<>% lapply(function(x) x[names(cl), ])
+ncx.exn@reductions %>% str
 ```
 
-### 3. `cl.df`
-```{r}
-cl.df <- get_cl_df(cl)
-
-cl.df$clade <- str_split_fixed(cl.df$cluster_label, "_", 2)[ ,1] %>% tolower 
-# Add clade_id, clade_color to cl.df
-clade.cols <- data.frame(# clade = unique(cl.df$clade),
-                        cluster_color = c("cr"= "darkgrey", 
-                                  "dividing" = "darkkhaki", 
-                                  "neuron" = "deepskyblue", 
-                                  "inteneuron" = "deeppink2", 
-                                  "ipc" = "brown4", 
-                                  "microglia" = "darkorchid1",
-                                  "opc" = "cadetblue", 
-                                  "other" = "darkslateblue", 
-                                  "rg" = "darkorange", 
-                                  "vascular" = "blanchedalmond")
-            ) %>% rownames_to_column("clade")
-
-cl.df %<>% left_join(clade.cols)
-rm(clade.cols)
-
-# cells.cl.df: Add cluster_id column from cl.df; remove unused columns. 
-cells.cl.df <- left_join(cells.cl.df %>% select(cell.name, cell.type, combined.cluster.2),
-                           cl.df %>% select(cluster_label, cluster_id), 
-                           by = c("combined.cluster.2" = "cluster_label")
-                ) %>% mutate(cluster_id = as.factor(cluster_id))
-```
-
-### 4. `rd.cl.center` Find cluster centers from UMAP coordinates
-```{r}
-rd.cl.center <- get_RD_cl_center(rd.dat$umap, cl) 
-
-rd.cl.center %<>% 
-  as.data.frame %>% 
-  set_names(c("x", "y")) %>%
-  add_column(cl = 1:nrow(rd.cl.center), .before = "x") %>%
-  # add_column preserves rownames.
-  # but moving rownames to column cluster_label anyway bc of left_join below.
-  rownames_to_column("cluster_label")
-```
-
-#### 5. `cl.center.df`
-Join `cl.df` and `rd.cl.center` into `cl.center.df` for input into `get_KNN_graph`.
-```{r}
-cl.center.df <- left_join(rd.cl.center, cl.df,
-                           by = c("cluster_label")) 
-```
-
-#### 6. `knn.cl` 
-```{r}
-# Fixes needed for proper output of knn.cl.df
-# cl.center.df %<>% rename(cluster_size = "size")
-# levels(cl) <- cl.df$cluster_id
-cl.numeric <- cl
-levels(cl.numeric) <- cl.df$cluster_id
-
-knn.result <- RANN::nn2(data = rd.dat$pca[, 1:10], k = 15)
-
-knn.cl <- get_knn_graph(rd.dat = rd.dat$pca[ , 1:10], 
-                        cl.df =  cl.df, cl = cl.numeric, 
-                        k = 15, 
-                        knn.outlier.th = 2, outlier.frac.t = 0.5)
-
-rm(rd.dat, ncx.clusters)
-```
-
-## 3. Make constellation plot
-```{r make-constellation, eval = FALSE}
-# Keep only cells where $frac [fraction of cells in cluster with nearest neighbors in different cluster] >= 0.05.
-# Defined in `get_knn_graph`: 
-# knn.cl.df$frac = knn.cl.df$Freq / knn.cl.df$cl.from.total
-# 10% : 213 edges
-knn.cl.df <- knn.cl$knn.cl.df  %>% filter(frac >= 0.1)
-
-# Plot only edges between ExN lineage clusters.
-# knn.cl.df %<>% filter_at(vars(cl.from.label, cl.to.label), 
-#                        all_vars(str_detect(., "RG|IPC|Neuron|OPC|Dividing"))
-#              )
-
-cl.center.df$cluster_label %<>% str_remove("_combo2")
-  
-cl.plot <- plot_constellation(knn.cl.df, cl.center.df, out.dir = "../out",
-                              node.label = "cluster_label", exxageration = 1, curved = TRUE, 
-                              plot.parts = FALSE, plot.hull = NULL, 
-                              plot.height = 40, plot.width = 40,
-                              node.dodge = TRUE, label.size = 2, max_size = 20)
-
-```
 
 ***
-# 2. Find DE genes between connected clusters.
-***
+# 3. Find DE genes between connected clusters.
 ```{r}
 # Dataframe w/ the proportion of k(15) nearest neighbors in each cluster for every cell.
 nn.cl.df <- knn.cl$pred.result$pred.prob %>% as.data.frame
@@ -348,13 +252,16 @@ markers <- FindMarkers(s.obj, slot = "scale.data",
 Calculate enrichment ratio, filter genes w. adj p-value < 0.05, sort table.
 Positive values indicate that the feature is more highly expressed in the first group.
 ```{r filter-markers, echo=TRUE}
-markers.tmp <- markers %>% rownames_to_column("gene") %>%
+markers %<>% rownames_to_column("gene") %>%
   mutate(enrich.ratio = pct.1 / pct.2,
-         gene.score = avg_diff * enrich.ratio
+         gene.score = avg_diff * enrich.ratio # what does this do to down genes?
+         
+markers$filter <- 
          # , across(.cols = where(is.numeric), .fns = round, digits = 4)
   ) %>%
-  filter(p_val_adj <= 0.05) %>% 
-  select(gene, pct.1, pct.2, enrich.ratio, avg_diff, gene.score, avg_diff) %>%
+  filter(p_val_adj <= 0.01) %>% 
+  filter(pct.1 >= 0.5 | pct.2 >= 0.5) %>%
+  select(gene, pct.1, pct.2, enrich.ratio, avg_diff, gene.score, avg_diff, p_val_adj) %>%
   arrange(desc(gene.score))
 
 markers.tmp[2:6] %<>% round(5)
@@ -386,25 +293,28 @@ xtab_set <- function(A,B){
 Make heatmap:
 ```{r build-heatmap}
 # Filter markers by enrichment ratio.
-markers.to.plot <- markers.tmp %>% filter(enrich.ratio >= 1.3 | enrich.ratio <= 0.7) %>% 
+markers.to.plot <- markers.tmp %>% filter(enrich.ratio >= 1.3 | enrich.ratio <= 0.7) %>%
   arrange(desc(enrich.ratio)) %>% pull(gene)
 
 cells.to.plot <- flatten_chr(cells)
 
-message(paste("Building heatmap for", length(markers.to.plot), "genes and", length(cells.to.plot), "cells."))
+
 
 # Get 1st and 99th percentiles to choose the limits for color scale. (clip outliers)
 (exp.limits <- s.obj@assays$RNA@scale.data[markers.to.plot, cells.to.plot] %>% as.numeric %>%
                   quantile(c(0, 0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 0.99, 1)))
 
+message(paste("Building heatmap for", length(markers.to.plot), "genes and", length(cells.to.plot), "cells."))
+
+
 heatmap <- 
   DoHeatmap(s.obj, 
-          cells = cells.to.plot,
-          features =  markers.to.plot,
-          disp.min = exp.limits["1%"],
-          disp.max = exp.limits["99%"],
-          angle = 0,
-          slot = "scale.data"
+            cells = cells.to.plot,
+            features =  markers.to.plot,
+            disp.min = exp.limits["1%"],
+            disp.max = exp.limits["99%"],
+            angle = 0,
+            slot = "scale.data"
           # slim.col.label = TRUE,
           # remove.key = TRUE
   ) +
@@ -416,8 +326,10 @@ heatmap <-
   ) +
     scale_fill_viridis(end = 1, na.value = 'white', option = "magma", discrete = FALSE)
 
-# ggsave(filename = "../DEgenes_neuron3_vs_neuron8_heatmap.pdf", width = 6, height = 4, units = "in" )
+ggsave(heatmap, filename = paste0("../out/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data_heatmap.pdf") )
 
+saveplot(filename = paste0("../out/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data_heatmap.pdf"),heatmap )
+#, width = 11, height = 8, units = "in"
 p <- ggplotly(heatmap, tooltip = "Feature", width = 1000, height = 800) %>% 
       layout(legend = list(yanchor = 'bottom', orientation = 'h')) %>% partial_bundle()
 
@@ -428,8 +340,93 @@ p$x$data[c(2,3)] <- NULL
 
 # saveWidget("~/carmensandoval.github.io/arklab/2nd-tri/clustering/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data.html", selfcontained = TRUE)
 
-saveWidget("../out/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data_heatmap.html", selfcontained = TRUE)
+saveWidget(p, paste0("../out/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data_heatmap.html"), selfcontained = TRUE)
 ```
+
+***
+## By cell type-area groups.
+
+Constellation plots
+```{r }
+ncx.exn@meta.data %<>% 
+  mutate(combined.cluster.2 = str_remove(combined.cluster.2, "_combo2"),
+         cell.type = str_replace(combined.cluster.2, "_[:digit:]+", replacement = "")) %>% 
+  unite(col = "cell.type.area.indiv", cell.type, Area, Individual, sep = "-", remove = FALSE) %>%
+  unite(col = "cell.type.area", cell.type, Area, sep = "-", remove = FALSE)
+```
+
+Make sure there are 271k cells in metadata.
+
+```{r}
+ncx.exn@meta.data %>% dplyr::count(cell.type)
+```
+
+```{r}
+ncx.exn@meta.data %>% dplyr::count(grp)
+```
+
+Make constellation plot.
+
+Call buildConstellation.Rmd, which has all the steps required to make dfs and plot.
+Takes arguments: cells.cl.df, groups.col, and rd.dat.
+
+
+```{r}
+unique(ncx.exn@meta.data$Area)
+reductions <- list(umap = ncx.exn@reductions$umap@cell.embeddings,
+               pca = ncx.exn@reductions$pca@cell.embeddings)
+
+colors.use <- c("motor" = "#007EB8", #command-blue
+                "parietal" = "#0CD4AD", #caribbean-green
+                 "pfc" = "#FF0558", #folly-red
+                 "somatosensory" = "#FDD913", # yellow
+                 "v1" = "#FE8499", #tulip-pink
+                 "temporal" = "#C487F6" #pale-violet
+)
+
+cl.df$clade <- str_split_fixed(cl.df$cluster_label, "_", 2)[ ,1] %>% tolower 
+# Add clade_id, clade_color to cl.df
+clade.cols <- data.frame(# clade = unique(cl.df$clade),
+                        cluster_color = c("cr"= "darkgrey", 
+                                  "dividing" = "darkkhaki", 
+                                  "neuron" = "deepskyblue", 
+                                  "inteneuron" = "deeppink2", 
+                                  "ipc" = "brown4", 
+                                  "microglia" = "darkorchid1",
+                                  "opc" = "cadetblue", 
+                                  "other" = "darkslateblue", 
+                                  "rg" = "darkorange", 
+                                  "vascular" = "blanchedalmond")
+            ) %>% rownames_to_column("clade")
+cl.df %<>% left_join(clade.cols)
+rm(clade.cols)
+
+
+rmarkdown::render("buildConstellation.Rmd", 
+                  params = list(cells.cl.df = ncx.exn@meta.data,
+                                rd.dat = reductions,
+                                 groups.col = "cell.type.area",
+                                 colors.use = colors.use
+                                 )
+)
+```
+
+
+
+
+
+
+```{r}
+cl <- cells.cl.df[[groups.col]] %>% as.factor %>% 
+  set_names(cells.cl.df$cell.name)
+```
+
+
+
+
+
+
+
 
 Extra functions
 ```{r functions}
