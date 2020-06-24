@@ -59,13 +59,14 @@ cl <- cells.cl.df[[groups.col]] %>% as.factor %>%
 cl.df <- get_cl_df(cl)
 
 cl.df$area <- str_split_fixed(cl.df$cluster_label, "-", 2)[ ,2] %>% tolower 
-# Add clade_id, clade_color to cl.df
-colors.use <- data.frame(colors.use
-                         # clade = unique(cl.df$clade),
-                         )  %>% rownames_to_column("group")
 
-cl.df <- cl.df %>% left_join(colors.use, by = c("area" = "group")) %>% 
-  rename(cluster_color = "colors.use")
+cl.df$clade <- str_split_fixed(cl.df$cluster_label, "-", 2)[ ,1] %>% tolower 
+# Add clade_id, clade_color to cl.df
+# cl.df <- cl.df %>% left_join(clade.cols)
+
+
+cl.df <- cl.df %>% left_join(colors.use, by = c("clade" = "group")) 
+# %>%  rename(cluster_color = "colors.use")
 # rm(group.cols)
 
 # cells.cl.df: Add cluster_id column from cl.df; remove unused columns. 
