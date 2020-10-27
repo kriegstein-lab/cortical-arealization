@@ -1,0 +1,105 @@
+# Seurat object subsets:
+
+```{r}
+subsetSeurat(Neocortex, cells.keep = ncx.clusters.exn$cell.name %>% sample(50000), write.to = "../data/ncx.v3.exn.sub_50k.rds")
+subsetSeurat(Neocortex, cells.keep = ncx.clusters.exn$cell.name %>% sample(100000), write.to = "../data/ncx.v3.exn.sub_100k.rds")
+```
+
+• Smaller dataset for working locally / not on massive cluster:
+```{r}
+# Custom function subsetSeurat (described below in fxns section)
+subsetSeurat(Neocortex, "data/ncx_v3_40k.rds")
+
+# On Mac
+ncx.small <- read_rds("~/tmp/constellation_plots/c7104_ncx_v3_4k.rds")
+
+# Reductions exported from neocortex_v3 [cfc4b2_neocortex_v3.RData] object:
+# This is the only part that's really needed for the plots.
+ncx.reductions <- read_rds("~/tmp/constellation_plots/11163_neocortex_v3_reductions.rds")
+```
+
+# Lean Seurat object subsets (rm @data, @counts):
+```{r}
+ncx.sub.lean <- ncx.sub %>% lapply(leanSeurat <- 
+                                      function(x) {
+                                        x@assays$RNA@counts <- matrix(c(0,0))
+                                          x@assays$RNA@data <- matrix(c(0,0))
+                                            return(x)
+                                        }
+                              )
+
+write_rds(ncx.sub.lean$k100, "2ndTrimester/constellation_plots/data/ncx.v3.exn.sub_100k.rds")
+write_rds(ncx.sub.lean$k50, "2ndTrimester/constellation_plots/data/ncx.v3.exn.sub_50k.rds")
+```
+
+# ______________________________________________________________________________
+# Seurat
+# ______________________________________________________________________________
+## FindNeighbors
+https://satijalab.org/seurat/v3.0/pbmc3k_tutorial.html
+> We first construct a K-nearest neighbors graph based on the euclidean distance in PCA space.
+  Refine the edge weights between any two cells based on the shared overlap in their local
+  neighborhoods (Jaccard similarity). 
+  This step is performed using the FindNeighbors function, and takes as input the previously defined
+  dimensionality of the dataset (first 10 PCs).
+
+```{r not-run}
+FindNeighbors.default <- function(
+  object,
+  distance.matrix = FALSE,
+  k.param = 20,
+  compute.SNN = TRUE,
+  prune.SNN = 1/15,
+  nn.method = 'rann',
+  annoy.metric = "euclidean",
+  nn.eps = 0,
+  verbose = TRUE,
+  force.recalc = FALSE,
+  ...
+)
+```
+
+```{r}
+ncx.small %<>% FindNeighbors(verbose = TRUE, do.plot = FALSE)
+```
+
+```{r}
+ncx.small@graphs %>% lapply(corner)
+```
+
+# ______________________________________________________________________________
+# Other functions
+# ______________________________________________________________________________
+
+## subsetSeurat
+```{r}
+# Custom function to downsample object.
+subsetSeurat <- function(object = NULL, fraction = NULL, cells.keep = NULL, write.to = "path/to/filename.rds") {
+  
+                    if( is.numeric(fraction) ) { # Random subset of x% of all cells.
+                       if(cells.keep == NULL) {
+                        print("Subsetting to random subset of cells.")
+                        cells.keep <- object@meta.data %>% rownames %>% sample(size = length(.)*fraction)
+                       } else 
+                         print("Either a fraction OR a vector of cells must be provided.")
+                      
+                    } else if( length(cells.keep) > 0) {
+                        print("Using specified cells to create subset of Seurat object.")
+                      
+                    } else(print("Either a fraction OR a vector of cells must be provided."))
+                    
+                    obj.small <- object %>% subset(cells = cells.keep)
+                    
+                    if( ! write.to == "path/to/filename.rds" ) {
+                      print("Writing file.")
+                       write_rds(obj.small, write.to)
+                    }
+                     
+                    return(obj.small)
+              }
+                        
+```
+
+## References
+Install ggforce on cluster:
+https://stackoverflow.com/a/59231055/4463919

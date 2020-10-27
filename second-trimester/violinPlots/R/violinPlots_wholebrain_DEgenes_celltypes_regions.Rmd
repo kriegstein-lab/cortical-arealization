@@ -1,0 +1,288 @@
+---
+title: "Violin Plots: DE genes: cell types across brain regions (whole brain)"
+output: html_notebook
+---
+
+# Data
+```{r}
+wb.small <- read_rds("../data/wholebrain_v3_small68k.rds")
+wb.small@meta.data
+wholebrain@meta.data <- read_tsv("../../data/tbls/wholebrain_metadata.txt")
+
+```
+
+
+# Brain region markers: by cell type
+For each cell type, get the top marker genes for each area.
+
+Read-in cell-type/areal marker genes
+```{r}
+dir <- "~/Dropbox/2ndTrimester/tbls/wholebrain_celltype_area_markers/"
+files <- paste0(dir, list.files(dir))
+
+# Use read.delim bc 1st column is rownames (tidyr functions don't work)
+markers <- lapply(files, read.delim) %>% 
+            rbindlist()
+```
+
+For each cell type, get the top marker genes for each area.
+
+## Top Marker genes
+```{r}
+markers %<>% separate(cluster, c("celltype", "area")) %>%
+                mutate(gene.ratio = pct.1 / pct.2,
+                       gene.score = avg_logFC * gene.ratio
+                       )
+
+# write_tsv(markers, "../violinPlots/DEgenes_wholebrain_all_celltypes.txt")
+
+# https://stackoverflow.com/a/27766224 slice_max
+
+top.markers <- markers %>% group_by(celltype, area) %>%
+                  slice_max(order_by = gene.score, n = 50)
+
+# getwrite_tsv(markers, "DEgenes_wholebrain_all_celltypes_top50.txt")
+```
+
+```{r}
+Idents(wholebrain)
+wholebrain@meta.data %<>% set_rownames(.$cell.name)
+
+wholebrain <- SetIdent(object = wholebrain, value = 'cell.type.v2')
+wb.small <- SetIdent(object = wb.small, value = 'cell.type.v2')
+
+genes.plot %>% lapply(function(x){
+  
+                          VlnPlot(wb.small, features = x,
+                                  idents = 'astrocyte', group.by = 'structure' )
+})
+
+```           
+
+
+```{r}
+top.markers %>% dplyr::count(area, celltype)
+
+
+celltypes.df <- data_frame(celltype = unique(top.markers$celltype),
+                        marker = c("AQP4", "GAD2", "CLDN5", "NEUROD6", "HES1", "OLIG2", "C1QC", "TOP2A", "EOMES")
+)
+
+# for(celltype in celltypes) {
+  
+
+# Reorder areas
+colors.structure <- data.frame(structure = c("neocortex", "proneocortex", "allocortex", 
+                                              "claustrum", "GE", "thalamus", "hypothalamus", 
+                                              "striatum", "midbrain", "cerebellum"),
+                               
+                               color = c("#00C0C7", "#9089FA", "orange","#DA3490", "#5144D3", 
+                                         "#ff6600", "#2780EB", "#ef233c", "#3d5a80", "#9BEC54")
+                               )
+
+scales::show_col(colors.structure$color, ncol = nrow(colors.structure))
+
+# https://forcats.tidyverse.org/reference/fct_relevel.html
+wb.small@meta.data$structure %<>% forcats::fct_relevel(colors.structure$structure)
+top.markers$area %<>% forcats::fct_relevel(colors.structure$structure)
+  
+  
+stackedVlnMarkers <- function(ct) {
+  
+                        print(ct)
+                        # print(region)
+  
+                        top.markers %<>% dplyr::filter(celltype == ct) %>% arrange(area, desc(gene.score)) %>% .$gene
+  
+                        canonical.gene <- celltypes.df %>% dplyr::filter(celltype == ct) %>% .$marker
+                                          
+                        
+                        print(top.markers)
+                        
+                        if( length(genes.plot) > 0) {
+
+                        p <- StackedVlnPlot(obj = wb.small, 
+                                        features = c(canonical.gene, top.markers),
+                                        title = ct,
+                                                    # genes.plot$gene[1: min(5, nrow(genes.plot))])
+                                        idents = ct, 
+                                        group.by = 'structure',
+                                        cols = colors.structure$color)
+                          
+                        ggsave(p, filename = paste0("../vlnPlot_topDEgenes_wholeBrainRegions_", ct, ".pdf"), 
+                               device = "pdf", width = 10, height = 30, units = 'in')
+                        
+                        tw_sms(paste0("Done: ", ct))
+                        
+                        }
+                        
+
+}
+
+
+
+p.violin <- lapply(celltypes.df$celltype, stackedVlnMarkers)
+tw_sms()
+
+
+
+
+
+top.markers %>% arrange(area, desc(gene.score))
+```
+
+```{r}
+ggsave(p.violin[[1]], filename = "../violinAstro.pdf", width = 10, height = 25, units = 'in')
+```
+
+```{r}
+markers %>% dplyr::count(area, celltype)
+```
+
+```{r}
+p_load(data.table)
+
+
+top.markers <- markers[7]] %>% group_by(area) %>% 
+  slice_max(order_by = gene.score, n = 20)
+
+
+genes.plot <- top.markers %>% dplyr::filter(area == "GE" & celltype == 'radialglia')
+
+top.markers %>% dplyr::count(celltype, area)
+
+
+StackedVlnPlot(obj = wb.small, 
+               features = c("AQP4", genes.plot$gene),
+               idents = 'astrocyte', group.by = 'structure')
+```
+
+# Make featurePlots for each marker
+```{r}
+fPlots$astro <- top.markers$gene %>% lapply(function(x) { makePlot(gene = !!sym(x), 
+                                                         cap = 4)
+}
+)
+
+
+# https://stackoverflow.com/questions/39736655/plot-over-multiple-pages
+
+m1 <- marrangeGrob(fPlots$astro, nrow=4, ncol=5)
+names(m1) <- seq(1:length(m1))
+
+for(i in names(m1)) {
+  ggsave(plot = m1[[i]], 
+         filename = paste0("../out/astrocyte_markers_", i, ".png"),
+         device = "png",
+         width = 45, height = 30, units = "in")
+}
+
+
+grid_arrange
+ggarrange()
+```
+
+## Neurons
+```{r}
+markers[[6]] %<>% separate(cluster, c("celltype", "area")) %>% 
+                      mutate(gene.ratio = pct.1 / pct.2,
+                             gene.score = avg_logFC * gene.ratio)
+
+top.markers <- list()
+top.markers$neurons <- markers[[6]] %>% 
+                        group_by(area) %>% 
+                          slice_max(order_by = gene.score, n = 5)
+
+fPlots$neurons <- top.markers$neurons$gene %>% 
+                    lapply(function(x) { 
+                      
+                      makePlot(gene = !!sym(x), 
+                               cap = 4)
+                    }
+                    )
+
+m1 <- list()
+m1$neurons <- marrangeGrob(fPlots$neurons, nrow=4, ncol=5)
+
+names(m1$neurons) <- seq(1:length(m1$neurons))
+
+for(i in names(m1$neurons)) {
+  ggsave(plot = m1$neurons[[i]], 
+         filename = paste0("../out/neuron_markers_", i, ".png"),
+         device = "png",
+         width = 45, height = 30, units = "in")
+}
+```
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+# fxn: stackedVlnPlot
+```{r}
+
+## remove the x-axis text and tick
+## plot.margin to adjust the white space between each plot.
+## ... pass any arguments to VlnPlot in Seurat
+
+modify_vlnplot<- function(obj, 
+                          feature, 
+                          pt.size = 0,
+                          ...) {
+  
+  p <- VlnPlot(obj, features = feature, pt.size = pt.size, ... )  + 
+    
+    ylab(feature) + 
+    
+    labs(title = NULL) +
+    
+    theme(legend.position = "none", 
+          
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          
+          axis.title.y = element_text(size = rel(0.75), angle = 0), 
+          axis.text.y = element_text(size = rel(0.75)), 
+          
+          plot.margin = unit(c(-2, -2, -2, -2), "cm") ) 
+  
+  return(p)
+}
+
+## extract the max value of the y axis
+extract_max<- function(p){
+  
+  ymax<- max(ggplot_build(p)$layout$panel_scales_y[[1]]$range$range)
+  return(ceiling(ymax))
+}
+
+
+## main function
+StackedVlnPlot<- function(obj, 
+                          features,
+                          pt.size = 0,
+                          title,
+                          # plot.margin = unit(c(0, 0, 0, 0), "cm"),
+                          ...) {
+  
+  plot_list <- purrr::map(features, 
+                          function(x) modify_vlnplot(obj = obj,
+                                                     feature = x, 
+                                                     ...))
+  
+  # Add back x-axis title to bottom plot. patchwork is going to support this?
+  plot_list[[length(plot_list)]] <- plot_list[[length(plot_list)]] +
+    theme(axis.text.x = element_text(size = rel(0.75), angle = 45), 
+          axis.ticks.x = element_line())
+  
+  # change the y-axis tick to only max value 
+  ymaxs <- purrr::map_dbl(plot_list, extract_max)
+  plot_list<- purrr::map2(plot_list, ymaxs, function(x,y) x + 
+                            scale_y_continuous(breaks = c(y)) + 
+                            expand_limits(y = y))
+
+  p <- patchwork::wrap_plots(plotlist = plot_list, ncol = 1) +
+     patchwork::plot_annotation(title = title)
+  
+  return(p)
+}
+```
+
