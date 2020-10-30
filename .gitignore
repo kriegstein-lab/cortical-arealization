@@ -1,3 +1,7 @@
 
 .DS_Store
-.Rproj.user
+*.Rproj
+.history/
+.Rhistory
+data/
+rstudio_files/
