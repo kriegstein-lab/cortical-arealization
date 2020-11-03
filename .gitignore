@@ -2,10 +2,10 @@
 *.Rproj
 .history/
 .Rhistory
-data/
+*data/
 rstudio_files/
 *.RData
-*.DS_Store
+*.rds
 *.Rproj.user
 rproj,user/
 .favorites.json

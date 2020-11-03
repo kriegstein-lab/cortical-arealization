@@ -1,0 +1,183 @@
+<!-- Sankey generated in R 4.0.3 by googleVis 0.6.6 package -->
+<!-- Mon Nov  2 23:44:43 2020 -->
+
+
+<!-- jsHeader -->
+<script type="text/javascript">
+ 
+// jsData 
+function gvisDatasankey_ipc_to_neuron_mid () {
+var data = new google.visualization.DataTable();
+var datajson =
+[
+ [
+"ipc_pfc_mid",
+"to_neuron_pfc_mid",
+151
+],
+[
+"ipc_pfc_mid",
+"to_neuron_msp_mid",
+174
+],
+[
+"ipc_pfc_mid",
+"to_neuron_temporal_mid",
+48
+],
+[
+"ipc_pfc_mid",
+"to_neuron_v1_mid",
+75
+],
+[
+"ipc_msp_mid",
+"to_neuron_pfc_mid",
+202
+],
+[
+"ipc_msp_mid",
+"to_neuron_msp_mid",
+279
+],
+[
+"ipc_msp_mid",
+"to_neuron_temporal_mid",
+112
+],
+[
+"ipc_msp_mid",
+"to_neuron_v1_mid",
+110
+],
+[
+"ipc_temporal_mid",
+"to_neuron_pfc_mid",
+77
+],
+[
+"ipc_temporal_mid",
+"to_neuron_msp_mid",
+113
+],
+[
+"ipc_temporal_mid",
+"to_neuron_temporal_mid",
+107
+],
+[
+"ipc_temporal_mid",
+"to_neuron_v1_mid",
+59
+],
+[
+"ipc_v1_mid",
+"to_neuron_pfc_mid",
+77
+],
+[
+"ipc_v1_mid",
+"to_neuron_msp_mid",
+121
+],
+[
+"ipc_v1_mid",
+"to_neuron_temporal_mid",
+80
+],
+[
+"ipc_v1_mid",
+"to_neuron_v1_mid",
+120
+] 
+];
+data.addColumn('string','item1');
+data.addColumn('string','item2');
+data.addColumn('number','n');
+data.addRows(datajson);
+return(data);
+}
+ 
+// jsDrawChart
+function drawChartsankey_ipc_to_neuron_mid() {
+var data = gvisDatasankey_ipc_to_neuron_mid();
+var options = {};
+options["width"] = 1000;
+options["height"] = 800;
+options["backgroundColor"] = "black";
+options["tooltip"] = { 
+                                      textStyle: { color: 'black' }, 
+                                      showColorCode: 'True',
+                                      isHTML: 'True'
+                                      };
+options["sankey"] = { iterations: 0 ,
+                                                         node: { colors :  ['#DE1738','#DE1738','#FFA500','#F40EB3','#1C32FF','#FFA500','#F40EB3','#1C32FF'] , 
+                                                                width : 25,
+                                                                nodePadding : 35,
+                                                                interactivity: 'True'
+                                                                              },
+                                                      
+                                                  label: { color: '#871b47' } , 
+                                                  link: { colorMode: 'gradient' }
+                          
+                                                 };
+
+
+    var chart = new google.visualization.Sankey(
+    document.getElementById('sankey_ipc_to_neuron_mid')
+    );
+    chart.draw(data,options);
+    
+
+}
+  
+ 
+// jsDisplayChart
+(function() {
+var pkgs = window.__gvisPackages = window.__gvisPackages || [];
+var callbacks = window.__gvisCallbacks = window.__gvisCallbacks || [];
+var chartid = "sankey";
+  
+// Manually see if chartid is in pkgs (not all browsers support Array.indexOf)
+var i, newPackage = true;
+for (i = 0; newPackage && i < pkgs.length; i++) {
+if (pkgs[i] === chartid)
+newPackage = false;
+}
+if (newPackage)
+  pkgs.push(chartid);
+  
+// Add the drawChart function to the global list of callbacks
+callbacks.push(drawChartsankey_ipc_to_neuron_mid);
+})();
+function displayChartsankey_ipc_to_neuron_mid() {
+  var pkgs = window.__gvisPackages = window.__gvisPackages || [];
+  var callbacks = window.__gvisCallbacks = window.__gvisCallbacks || [];
+  window.clearTimeout(window.__gvisLoad);
+  // The timeout is set to 100 because otherwise the container div we are
+  // targeting might not be part of the document yet
+  window.__gvisLoad = setTimeout(function() {
+  var pkgCount = pkgs.length;
+  google.load("visualization", "1", { packages:pkgs, callback: function() {
+  if (pkgCount != pkgs.length) {
+  // Race condition where another setTimeout call snuck in after us; if
+  // that call added a package, we must not shift its callback
+  return;
+}
+while (callbacks.length > 0)
+callbacks.shift()();
+} });
+}, 100);
+}
+ 
+// jsFooter
+</script>
+ 
+<!-- jsChart -->  
+<script type="text/javascript" src="https://www.google.com/jsapi?callback=displayChartsankey_ipc_to_neuron_mid"></script>
+ 
+<!-- divChart -->
+  
+<div id="sankey_ipc_to_neuron_mid" 
+  style="width: 1000; height: 800;">
+</div>
