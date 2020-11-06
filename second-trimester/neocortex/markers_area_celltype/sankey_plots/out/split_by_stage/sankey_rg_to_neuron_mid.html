@@ -1,69 +1,113 @@
-<!-- Sankey generated in R 4.0.3 by googleVis 0.6.6 package -->
-<!-- Mon Nov  2 23:44:43 2020 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml">
+<head>
+<title>sankey_rg_to_neuron_mid</title>
+<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+<style type="text/css">
+body {
+  color: #444444;
+  font-family: Arial,Helvetica,sans-serif;
+  font-size: 75%;
+  }
+  a {
+  color: #4D87C7;
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+ <!-- Sankey generated in R 4.0.3 by googleVis 0.6.6 package -->
+<!-- Tue Nov  3 15:14:30 2020 -->
 
 
 <!-- jsHeader -->
 <script type="text/javascript">
  
 // jsData 
-function gvisDatasankey_ipc_to_neuron_late () {
+function gvisDatasankey_rg_to_neuron_mid () {
 var data = new google.visualization.DataTable();
 var datajson =
 [
  [
-"ipc_pfc_late",
-"to_neuron_pfc_late",
-15
+"rg_pfc_mid",
+"to_neuron_pfc_mid",
+206
 ],
 [
-"ipc_pfc_late",
-"to_neuron_msp_late",
-20
+"rg_pfc_mid",
+"to_neuron_msp_mid",
+229
 ],
 [
-"ipc_pfc_late",
-"to_neuron_temporal_late",
-11
+"rg_pfc_mid",
+"to_neuron_temporal_mid",
+77
 ],
 [
-"ipc_pfc_late",
-"to_neuron_v1_late",
-4
+"rg_pfc_mid",
+"to_neuron_v1_mid",
+98
 ],
 [
-"ipc_msp_late",
-"to_neuron_pfc_late",
-12
+"rg_msp_mid",
+"to_neuron_pfc_mid",
+236
 ],
 [
-"ipc_msp_late",
-"to_neuron_msp_late",
-37
+"rg_msp_mid",
+"to_neuron_msp_mid",
+329
 ],
 [
-"ipc_msp_late",
-"to_neuron_temporal_late",
-18
+"rg_msp_mid",
+"to_neuron_temporal_mid",
+172
 ],
 [
-"ipc_msp_late",
-"to_neuron_v1_late",
-14
+"rg_msp_mid",
+"to_neuron_v1_mid",
+156
 ],
 [
-"ipc_v1_late",
-"to_neuron_msp_late",
-32
+"rg_temporal_mid",
+"to_neuron_pfc_mid",
+69
 ],
 [
-"ipc_v1_late",
-"to_neuron_temporal_late",
-16
+"rg_temporal_mid",
+"to_neuron_msp_mid",
+125
 ],
 [
-"ipc_v1_late",
-"to_neuron_v1_late",
-29
+"rg_temporal_mid",
+"to_neuron_temporal_mid",
+105
+],
+[
+"rg_temporal_mid",
+"to_neuron_v1_mid",
+68
+],
+[
+"rg_v1_mid",
+"to_neuron_pfc_mid",
+119
+],
+[
+"rg_v1_mid",
+"to_neuron_msp_mid",
+213
+],
+[
+"rg_v1_mid",
+"to_neuron_temporal_mid",
+83
+],
+[
+"rg_v1_mid",
+"to_neuron_v1_mid",
+151
 ] 
 ];
 data.addColumn('string','item1');
@@ -74,8 +118,8 @@ return(data);
 }
  
 // jsDrawChart
-function drawChartsankey_ipc_to_neuron_late() {
-var data = gvisDatasankey_ipc_to_neuron_late();
+function drawChartsankey_rg_to_neuron_mid() {
+var data = gvisDatasankey_rg_to_neuron_mid();
 var options = {};
 options["width"] = 1000;
 options["height"] = 800;
@@ -86,7 +130,7 @@ options["tooltip"] = {
                                       isHTML: 'True'
                                       };
 options["sankey"] = { iterations: 0 ,
-                                                         node: { colors :  ['#DE1738','#DE1738','#FFA500','#F40EB3','#1C32FF','#FFA500','#1C32FF'] , 
+                                                         node: { colors :  ['#DE1738','#DE1738','#FFA500','#F40EB3','#1C32FF','#FFA500','#F40EB3','#1C32FF'] , 
                                                                 width : 25,
                                                                 nodePadding : 35,
                                                                 interactivity: 'True'
@@ -99,7 +143,7 @@ options["sankey"] = { iterations: 0 ,
 
 
     var chart = new google.visualization.Sankey(
-    document.getElementById('sankey_ipc_to_neuron_late')
+    document.getElementById('sankey_rg_to_neuron_mid')
     );
     chart.draw(data,options);
     
@@ -123,9 +167,9 @@ if (newPackage)
   pkgs.push(chartid);
   
 // Add the drawChart function to the global list of callbacks
-callbacks.push(drawChartsankey_ipc_to_neuron_late);
+callbacks.push(drawChartsankey_rg_to_neuron_mid);
 })();
-function displayChartsankey_ipc_to_neuron_late() {
+function displayChartsankey_rg_to_neuron_mid() {
   var pkgs = window.__gvisPackages = window.__gvisPackages || [];
   var callbacks = window.__gvisCallbacks = window.__gvisCallbacks || [];
   window.clearTimeout(window.__gvisLoad);
@@ -149,10 +193,18 @@ callbacks.shift()();
 </script>
  
 <!-- jsChart -->  
-<script type="text/javascript" src="https://www.google.com/jsapi?callback=displayChartsankey_ipc_to_neuron_late"></script>
+<script type="text/javascript" src="https://www.google.com/jsapi?callback=displayChartsankey_rg_to_neuron_mid"></script>
  
 <!-- divChart -->
   
-<div id="sankey_ipc_to_neuron_late" 
+<div id="sankey_rg_to_neuron_mid" 
   style="width: 1000; height: 800;">
 </div>
+ <div><span>Data: gvis_df_x %>% select(item1, item2, n) &#8226; Chart ID: <a href="Chart_sankey_rg_to_neuron_mid.html">sankey_rg_to_neuron_mid</a> &#8226; <a href="https://github.com/mages/googleVis">googleVis-0.6.6</a></span><br /> 
+<!-- htmlFooter -->
+<span> 
+  R version 4.0.3 (2020-10-10) 
+  &#8226; <a href="https://developers.google.com/terms/">Google Terms of Use</a> &#8226; <a href="https://developers.google.com/chart/interactive/docs/gallery/sankey">Documentation and Data Policy</a>
+</span></div>
+</body>
+</html>
