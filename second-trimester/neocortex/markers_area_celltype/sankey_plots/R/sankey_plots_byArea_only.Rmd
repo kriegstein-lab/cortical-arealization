@@ -1,0 +1,177 @@
+---
+title: "Sankey plots: Between cell types, by area.\n Consolidated ages"
+date: 2020-11-09
+output: html_notebook
+---
+
+
+```{r}
+markers.plot.df <- df.markers
+```
+
+```{r}
+markers.plot.df %<>% unite("group", celltype, region, remove = FALSE)
+
+# Calculate pairwise intersection of genes.
+pairs.raw <-  widyr::pairwise_count(markers.plot.df,
+                                    item = group, 
+                                    feature = gene, 
+                                    sort = TRUE, diag = TRUE, upper = TRUE) %>% 
+                                    arrange(item1, item2)
+```
+
+```{r}
+     # UNIQUE GENES 
+      # . . . . . . . 
+      # Get unique genes for each group (not shared with any other [celltype]:region:stage group)
+      
+      unique.genes <- lapply(unique(markers.plot.df$group), 
+                             
+                             function(x) {
+
+                                 outgroup <- markers.plot.df %>% 
+                                               dplyr::filter(! group == x)
+                                 group <- markers.plot.df %>% 
+                                               dplyr::filter(group == x)
+                
+                                  setdiff(group$gene, outgroup$gene)
+                             }
+                      ) %>% set_names(unique(markers.plot.df$group))
+      
+      # Get counts of unique genes for each [celltype]:region:stage group
+      unique.genes <- unique.genes %>% tibble(item1 = names(.),
+                                              item2 = paste0(item1, "_unique"),
+                                              n = lapply(., length) %>% unlist,
+                                              genes = .
+                                              
+                              )
+
+      genes.intersect <- purrr::map2(.x = pairs.raw$item1, .y = pairs.raw$item2, 
+                      .f = function(.x, .y) {
+                              a <-markers.plot.df %>% filter(group == .x)
+                              b <- markers.plot.df %>% filter(group == .y)
+                              intersect(a$gene, b$gene)
+                      }
+                                  ) %>% tibble(genes = .)
+      
+      pairs <- pairs.raw %>% bind_cols(genes.intersect) %>%
+            bind_rows(unique.genes)
+      
+      
+         # Get # of shared genes
+         # {r 20201021_1604}
+
+      pairs_shared <- pairs %>% filter(item2 %>% str_detect("unique") | item1 == item2) %>% 
+            group_by(item1) %>% summarise(n = first(n) - n[2]) %>% 
+                add_column(item2 = paste0(.$item1, "_shared"), .after = 1) 
+
+      pairs <- pairs %>%
+            bind_rows(pairs_shared)  %>%
+             mutate(item2 = case_when(item1 == item2 ~ paste0(item2, "_all"),
+                                      TRUE ~ item2 )) %>% 
+               arrange(item1, desc(item2))
+      
+      # 168 comparisons
+```
+```{r}
+pairs.norm <- pairs %>% group_by(item1) %>% 
+  arrange(desc(n), .by_group = TRUE) %>% 
+  mutate(n_norm = (n / first(n)) %>% round(4), .after = n)
+
+# TODO [] 2020-10-23 | Arrange by all, unique, shared for each group in item1 (factor bins?)
+{  x <- pairs$item2
+   x <- factor(x, levels = c(x[str_ends(x, "all")], x[str_ends(x, "unique")], "shared", 
+                                          unique(pairs$item1)
+                                   )
+               )
+  pairs.norm %>% ungroup %>% mutate(item2 = x) %>%  arrange(item1, item2)
+}
+
+## Add group metadata and region-specific colors
+groups.metadata  <- markers.plot.df %>% distinct(group, celltype, region) %>%
+                      left_join(colors.area %>% select(category, color.region), by = c("region" = "category"))
+
+colors.area <- colors.area %>% mutate(category = factor(category, 
+                                                    levels = c("pfc", "motor", "somatosensory", 
+                                                               "parietal", "msp", "temporal", "v1")))
+
+groups.metadata$region %<>% factor(levels = levels(colors.area$category))
+
+
+
+# Add region, stage and colors to `pairs`.
+p_load(fuzzyjoin)
+
+pairs.norm %<>% left_join(groups.metadata,
+                                        by = c("item1" = "group")
+                                        ) %>%
+                                regex_left_join(groups.metadata, 
+                                                by = c("item2" = "group")) %>%
+                                        # suffix = c(".source", ".target")
+                               select(-group) %>% rename_with(.fn = ~case_when(str_detect(.x, ".x") ~ gsub(".x","_source", .x),
+                                                                               str_detect(.x, ".y") ~ gsub(".y","_target", .x),
+                                                                              TRUE ~ .x)
+                               )
+
+# function(x) { gsub(".x", "_source", x, fixed = TRUE)
+#              gsub(".y", "_target", x, fixed = TRUE)
+#                  
+#                } )
+
+# Check levels of categorical variables: stage, region
+pairs.norm %>% map(~ if ( is.factor(.x) ) print(levels(.x)) )
+
+write_rds(pairs.norm, path = "../out/sankey_markers_pairs_exnLineage_byArea_only.rds")
+# Saved on 20201023
+# TODO figure out how to write as a simple text file? 
+  # Column 'genes' is a list of character vectors.
+      
+datatable(pairs, class = 'table-bordered table-condensed')
+
+# Go to gvisSankey from here
+```
+
+# Make Sankey Plots
+
+```{r}
+comparisons <- tribble(
+                  ~celltype_1, ~celltype_2,
+
+                        "rg",  "neuron",
+                        "rg",  "ipc",
+                        "ipc", "neuron"
+                )
+
+
+gvis_df_inter <-  purrr::pmap(.l = comparisons, .f = ~ pairs.norm %>% select(-genes) %>%
+                # mutate(n = as.integer(n)) %>%  [not sure if necessary]
+                                        filter(item1 %>% str_detect(..1) & item2 %>% str_detect(..2)) %>% 
+                                          filter(! item2 %>% str_detect("all|shared")) %>%
+                                          arrange(celltype_source, region_source, cell_targetpe_target, region_target) %>% 
+                                          mutate(item2 = str_remove(item2, "_unique"))) %>%
+                                          tibble(item1_item2 = purrr::pmap_chr(.l = comparisons, ~ glue(..1, ..2, .sep = "_to_")), df = .) %>% 
+  rename(comparison = "item1_item2")
+```
+                                                  
+
+```{r}
+path <- "../out/by_area_only/"
+
+sankey_inter_celltype_byarea <- pmap(gvis_df_inter,
+                                     .f = ~ make_gvisSankey(chart_id = ..1, 
+                                                           gvis_df_x = ungroup(..2)
+                                                                 )
+)
+
+gvis_df_inter$sankey_plot <- sankey_inter_celltype_byarea %>% map(~.[[4]])
+
+gvis_df_inter$sankey_plot %>% map(~ print(x = .x, 
+                                                     tag = "html",
+                                                     file = glue(path, .x$chartid, ".html")
+                                                     )
+)
+
+system("for f in *.html; do phantomjs ../pdfprint.js "$f" "${f}.pdf"; done")
+
+getwd()
+```

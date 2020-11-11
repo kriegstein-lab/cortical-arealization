@@ -13,8 +13,10 @@ save.image("../R/2020-10-26_sankey_plots.RData")
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Read data
-  • Copied from:`../aparna/homefiles/Fall2019_finalclustering_secondtrimester/_neocortex_*_byarea_clustermarkers.txt`
+Read data: gene markers
+  • From:
+    `../aparna/homefiles/Fall2019_finalclustering_secondtrimester/_neocortex_*_byarea_clustermarkers.txt`
+    
 ```{r read-gene-markers}
 dir <- "../../../area_specific_markers/tbls_markers_by_celltype_and_area/"
 
@@ -60,6 +62,7 @@ markers[!complete.cases(markers), ] %>% inspect_cat() %>% show_plot()
 df.markers <- df.markers[complete.cases(df.markers), ]
 ```
 
+Plot counts per group (cell type / area)
 ```{r plot-counts-bar}
 
 .stash <- new_environment()
@@ -88,9 +91,6 @@ df.markers %>% inspect_cat() %>% show_plot()
 df.markers[!complete.cases(df.markers), ]
 
 
-
-
-
 colors.area %<>% mutate(category = str_replace(category, "somato", "somatosensory")) %>%
   rename(area = "category")
 ```
@@ -108,10 +108,11 @@ facet_grid(rows = vars(celltype), cols = vars(area), scale = "free_y")  +
 
 # fxn: buildSankey
 
+Counts the number of shared genes between pairs of groups of cells.
 ```{r}
 # ARGUMENTS
 # ===========
-# 1. A dataframe `markers`
+# 1. A `markers` dataframe 
 # 2. An optional stage (early/mid/late).
 # 3. An out.dir
 
@@ -445,11 +446,10 @@ write_rds(pairs.norm, path = "../../sankey/out/sankey_markers_pairs_exnLineage.r
 # Saved on 20201023
 # TODO figure out how to write as a simple text file? 
   # Column 'genes' is a list of character vectors.
-                  
-# Go to gvisSankey from here
-
+      
 datatable(pairs, class = 'table-bordered table-condensed')
 
+# Go to gvisSankey from here
 ```
 
 ### Plot colors for each area / region
@@ -478,12 +478,12 @@ x <- x %>% arrange(region)
 ggplot(x) + 
   geom_point(aes(x = area, colour = region, y = 0), size = 10) +
   scale_color_manual(values = x$color.region %>% as.character() %>% unique)
-
 ```
 
 # . . . . . . . . . . . . . . . . . . . . .
 
 # gvisSankey
+
 ```{r gvisSankey}
 # Start with df.links
 # df.links: A table with the # of shared gene markers between pairs of cell groups.
@@ -512,9 +512,6 @@ gvis.df <- df.links %>% filter(across(.cols = contains("name"),
                                       arrange(source.name, target.name) %>% 
                                        select(source.name, target.name, n)
 
-
-
-
 ```
 
 
@@ -535,6 +532,7 @@ comparisons <- tribble(
                         "ipc",  "ipc",
                         "neuron", "neuron"
                 )
+
 
 gvis.df_self <-  purrr::pmap(.l = comparisons, .f = ~ pairs.norm %>% select(-genes) %>%
                 # mutate(n = as.integer(n)) %>%  [not sure if necessary]
@@ -605,11 +603,13 @@ make_gvisSankey <- function(chart_id, gvis_df_x) {
                                         )
             )
 
-print(plot, tag = "chart", file = glue("../../sankey/out/html/sankey_", chart_id, ".html")) 
+# print(plot, tag = "html", file = glue(path, chart_id, ".html"))
 
-return(list(groups.order, colors, gvis_df_x, plot) %>% tibble( chart_id = .))
+return(list(groups.order, colors, gvis_df_x, plot))
 
 }
+
+
 
 
 options(op)

@@ -4,11 +4,13 @@ date: 2010-11-02
 output: html_notebook
 ---
 
-From @sankey_plots.Rmd\
+From @sankey_plots.Rmd
 {r 2020-10-21_normalizePairCounts}
 
 ```{r}
-sankey_counts <- read_rds("../intermediate_files/sankey_markers_pairs_exnLineage.rds")
+p_load(tidyverse)
+
+sankey_counts <- read_rds("../out_intermediate/sankey_markers_pairs_exnLineage.rds")
 
 load("../../../../area_specific_markers/sankey/R/2020-10-26_sankey_plots.RData")
 ```

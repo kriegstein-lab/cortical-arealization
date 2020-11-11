@@ -15,9 +15,12 @@ p_load(manipulateWidget)
 p_load(fs)
 ```
 
-# Data
+# Load data
 ```{r}
-ncx.exn <- read_rds("../data/exn_lineage/neocortex_exn_lineage_271k.rds")
+ncx.exn <- read_rds("~/cse-phd/second-trimester/neocortex/ncx_data/exn_lineage/neocortex_exn_lineage_271k.rds")
+
+# All neocortex (not just excitatory lineage)
+"~/cse-phd/second-trimester/neocortex/ncx_data/cfc4b2_neocortex_v3.RData"
 ```
 
 

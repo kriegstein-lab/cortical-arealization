@@ -16,8 +16,8 @@ if(booleanCorrectInput === true){
     var page = require('webpage').create();
     page.viewportSize = { width: 1000, height: 800 };
     page.paperSize = {
-        orientation: 'landscape',
-        margin: '10px'
+        width: 1100, height: 1000,
+        margin: '0px'
     };
     page.settings.dpi = "120";
 

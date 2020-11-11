@@ -1,0 +1,210 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml">
+<head>
+<title>sankey_rg_to_neuron</title>
+<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+<style type="text/css">
+body {
+  color: #444444;
+  font-family: Arial,Helvetica,sans-serif;
+  font-size: 75%;
+  }
+  a {
+  color: #4D87C7;
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+ <!-- Sankey generated in R 4.0.3 by googleVis 0.6.6 package -->
+<!-- Mon Nov  9 12:23:54 2020 -->
+
+
+<!-- jsHeader -->
+<script type="text/javascript">
+ 
+// jsData 
+function gvisDatasankey_rg_to_neuron () {
+var data = new google.visualization.DataTable();
+var datajson =
+[
+ [
+"rg_pfc",
+"to_neuron_pfc",
+348
+],
+[
+"rg_pfc",
+"to_neuron_msp",
+338
+],
+[
+"rg_pfc",
+"to_neuron_temporal",
+152
+],
+[
+"rg_pfc",
+"to_neuron_v1",
+142
+],
+[
+"rg_msp",
+"to_neuron_pfc",
+421
+],
+[
+"rg_msp",
+"to_neuron_msp",
+559
+],
+[
+"rg_msp",
+"to_neuron_temporal",
+277
+],
+[
+"rg_msp",
+"to_neuron_v1",
+259
+],
+[
+"rg_temporal",
+"to_neuron_pfc",
+137
+],
+[
+"rg_temporal",
+"to_neuron_msp",
+212
+],
+[
+"rg_temporal",
+"to_neuron_temporal",
+155
+],
+[
+"rg_temporal",
+"to_neuron_v1",
+109
+],
+[
+"rg_v1",
+"to_neuron_pfc",
+383
+],
+[
+"rg_v1",
+"to_neuron_msp",
+596
+],
+[
+"rg_v1",
+"to_neuron_temporal",
+289
+],
+[
+"rg_v1",
+"to_neuron_v1",
+316
+] 
+];
+data.addColumn('string','item1');
+data.addColumn('string','item2');
+data.addColumn('number','n');
+data.addRows(datajson);
+return(data);
+}
+ 
+// jsDrawChart
+function drawChartsankey_rg_to_neuron() {
+var data = gvisDatasankey_rg_to_neuron();
+var options = {};
+options["width"] = 1000;
+options["height"] = 800;
+options["backgroundColor"] = "black";
+options["tooltip"] = { 
+                                      textStyle: { color: 'black' }, 
+                                      showColorCode: 'True',
+                                      isHTML: 'True'
+                                      };
+options["sankey"] = { iterations: 0 ,
+                                                         node: { colors :  ['#DE1738','#DE1738','#FFA500','#F40EB3','#1C32FF','#FFA500','#F40EB3','#1C32FF'] , 
+                                                                width : 25,
+                                                                nodePadding : 35,
+                                                                interactivity: 'True'
+                                                                              },
+                                                      
+                                                  label: { color: '#871b47' } , 
+                                                  link: { colorMode: 'gradient' }
+                          
+                                                 };
+
+
+    var chart = new google.visualization.Sankey(
+    document.getElementById('sankey_rg_to_neuron')
+    );
+    chart.draw(data,options);
+    
+
+}
+  
+ 
+// jsDisplayChart
+(function() {
+var pkgs = window.__gvisPackages = window.__gvisPackages || [];
+var callbacks = window.__gvisCallbacks = window.__gvisCallbacks || [];
+var chartid = "sankey";
+  
+// Manually see if chartid is in pkgs (not all browsers support Array.indexOf)
+var i, newPackage = true;
+for (i = 0; newPackage && i < pkgs.length; i++) {
+if (pkgs[i] === chartid)
+newPackage = false;
+}
+if (newPackage)
+  pkgs.push(chartid);
+  
+// Add the drawChart function to the global list of callbacks
+callbacks.push(drawChartsankey_rg_to_neuron);
+})();
+function displayChartsankey_rg_to_neuron() {
+  var pkgs = window.__gvisPackages = window.__gvisPackages || [];
+  var callbacks = window.__gvisCallbacks = window.__gvisCallbacks || [];
+  window.clearTimeout(window.__gvisLoad);
+  // The timeout is set to 100 because otherwise the container div we are
+  // targeting might not be part of the document yet
+  window.__gvisLoad = setTimeout(function() {
+  var pkgCount = pkgs.length;
+  google.load("visualization", "1", { packages:pkgs, callback: function() {
+  if (pkgCount != pkgs.length) {
+  // Race condition where another setTimeout call snuck in after us; if
+  // that call added a package, we must not shift its callback
+  return;
+}
+while (callbacks.length > 0)
+callbacks.shift()();
+} });
+}, 100);
+}
+ 
+// jsFooter
+</script>
+ 
+<!-- jsChart -->  
+<script type="text/javascript" src="https://www.google.com/jsapi?callback=displayChartsankey_rg_to_neuron"></script>
+ 
+<!-- divChart -->
+  
+<div id="sankey_rg_to_neuron" 
+  style="width: 1000; height: 800;">
+</div>
+ <div><span>Data: gvis_df_x %>% select(item1, item2, n) &#8226; Chart ID: <a href="Chart_sankey_rg_to_neuron.html">sankey_rg_to_neuron</a> &#8226; <a href="https://github.com/mages/googleVis">googleVis-0.6.6</a></span><br /> 
+<!-- htmlFooter -->
+<span> 
+  R version 4.0.3 (2020-10-10) 
+  &#8226; <a href="https://developers.google.com/terms/">Google Terms of Use</a> &#8226; <a href="https://developers.google.com/chart/interactive/docs/gallery/sankey">Documentation and Data Policy</a>
+</span></div>
+</body>
+</html>

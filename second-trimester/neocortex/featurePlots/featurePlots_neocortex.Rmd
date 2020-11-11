@@ -1,0 +1,25 @@
+---
+title: "Feature Plots: Neocortex"
+output: html_notebook
+---
+
+```{r}
+source("~/cse-phd/second-trimester/R/featurePlots.R")
+```
+
+```{r}
+# All neocortex (not just excitatory lineage)
+"~/cse-phd/second-trimester/neocortex/ncx_data/cfc4b2_neocortex_v3.RData"
+
+Neocortex
+# 404K cells
+# 29K genes
+```
+
+```{r}
+seurat.object <- Neocortex
+
+postn <- makePlot(gene = POSTN)
+
+```
+
