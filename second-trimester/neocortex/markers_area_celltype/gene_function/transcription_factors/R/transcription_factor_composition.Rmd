@@ -1,0 +1,133 @@
+---
+title: "Analysis of areal markers"
+output: html_notebook
+---
+
+```{r}
+p_load(tidyverse)
+```
+
+```{r}
+remotes::install_github("federicomarini/GeneTonic", 
+                        dependencies = TRUE, build_vignettes = TRUE)
+
+BiocManager::install("clusterProfiler")
+BiocManager::install("pathview")
+BiocManager::install("enrichplot")
+library(clusterProfiler)
+library(enrichplot)
+```
+
+```{r}
+p_load(biomaRt)
+
+listMarts()
+
+ensembl <- useMart("ensembl")
+ensembl <- useDataset("hsapiens_gene_ensembl", mart = ensembl)
+
+listDatasets(ensembl)
+
+listAttributes(ensembl) %>% filter(! name %>% str_detect("homolog"))
+
+searchAttributes(mart = ensembl, pattern = "GO")
+```
+
+```{r}
+pairs <- list(by_area_stage = read_rds("../../sankey_plots/out_intermediate/sankey_markers_pairs_exnLineage.rds"),
+              by_area = read_rds("../../sankey_plots/out_intermediate/sankey_markers_pairs_exnLineage_byArea_only.rds")
+          )
+
+genes <- pairs$by_area %>% filter(item2 == "rg_pfc_unique") %>% .$genes %>% .[[1]]
+```
+
+
+
+```{r}
+
+goids <- getBM(attributes = c('hgnc_symbol', 'description', 'name_1006', 'definition_1006', 'go_id','namespace_1003'), 
+              filters = 'hgnc_symbol', 
+              values = genes, 
+              mart = ensembl)
+
+goids %>% as_tibble %>% dplyr::select(hgnc_symbol, description, name_1006, definition_1006, go_id, namespace_1003) %>% filter(namespace_1003 %in% c("molecular_function", "biological_process"))
+
+goids %>% count(name_1006) %>% arrange(desc(n))
+```
+```{r}
+goids %>% filter(name_1006 %>% str_detect("transcription")) %>% distinct(hgnc_symbol, name_1006, .keep_all = TRUE)
+```
+Categories with the word 'transcription'
+```{r}
+goids %>% filter(name_1006 %>% str_detect("transcription")) %>% distinct(hgnc_symbol, name_1006, .keep_all = TRUE) %>% count(name_1006)
+```
+
+```{r}
+goids %>% filter(name_1006 %>% str_detect("transcription")) %>% distinct(hgnc_symbol, name_1006, .keep_all = TRUE) %>% 
+  ggplot() + geom_tile(aes(y = name_1006, x = as_factor(hgnc_symbol), fill = name_1006))
+```
+
+# Radial glia: PFC: all marker genes
+```{r}
+x <- pairs$by_area %>% filter(item2 == "rg_pfc_unique") %>% pull(genes) %>% .[[1]]
+
+goids_x <- getBM( filters = 'hgnc_symbol', 
+                  values = x, 
+                  mart = ensembl,
+                  attributes = c('hgnc_symbol', 'description', 
+                                'name_1006', 'definition_1006', 'go_id',
+                                'namespace_1003')
+                  )
+
+goids_x %>% filter(name_1006 %>% str_detect("transcription|enhancer|methylation") & ! name_1006 %>% str_detect("viral")) %>% distinct(hgnc_symbol, name_1006, .keep_all = TRUE) %>% add_count(name_1006) %>% arrange(desc(n)) %>% distinct(hgnc_symbol, .keep_all = TRUE) %>% dplyr::select(hgnc_symbol, name_1006, n, everything())
+# 149 genes are classified as some sort of transcription GO
+%>% 
+  ggplot() + geom_tile(aes(y = name_1006, x = as_factor(hgnc_symbol), fill = name_1006)) + theme(legend.position = "none", axis.text.x = element_text(angle = 90))
+```
+
+
+```{r}
+goids_x %>% filter(name_1006 %>% str_detect("expression"))
+
+                   ) %>% distinct(hgnc_symbol, name_1006, .keep_all = TRUE) %>% add_count(name_1006) %>% arrange(desc(n)) %>% distinct(hgnc_symbol, .keep_all = TRUE) %>% 
+```
+
+```{r}
+goids_x <- goids_x %>% filter(! namespace_1003 %>% str_detect("cellular_component") &
+                    ! name_1006 == '') %>% 
+  add_count(name_1006) %>% arrange(desc(n, name_1006)) %>% 
+  mutate(name_1006 = as_factor(name_1006)) %>%
+    dplyr::select(hgnc_symbol, name_1006, n, description, everything())
+
+goids_x %>% inspectdf::inspect_cat()
+```
+
+
+```{r}
+goids_x %>% dplyr::select(namespace_1003, name_1006) %>% ggplot() + geom_bar(aes(y = name_1006)) + facet_wrap(~namespace_1003, scales = 'free')
+```
+
+
+
+```{r}
+tfs <- read_table2("animalDB/Homo_sapiens_TF.txt") %>% set_names(tolower(names(.)))
+
+left_join(x %>% tibble(symbol = .), tfs) %>% filter(! is.na(family))
+
+# 43 genes are in AnimalDB
+```
+
+
+```{r}
+tf_cofactors <- read_tsv("animalDB/Homo_sapiens_TF_cofactors.txt") %>% set_names(tolower(names(.)))
+
+left_join(x %>% tibble(symbol = .), tfs) %>% filter(! is.na(family))
+
+# 43 genes are in AnimalDB
+```
+
+
+```{r}
+
+```
+
