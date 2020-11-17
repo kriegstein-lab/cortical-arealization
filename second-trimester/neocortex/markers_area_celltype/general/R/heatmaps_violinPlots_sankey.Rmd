@@ -949,8 +949,6 @@ avg.exp <- lapply(markers.ct, function(markers) {
 
 write_rds(avg.exp, "..l")
 avg.exp <- read_rds( "~/Dropbox/2nd Trimester Areas Paper/Area Specific Genes/areaMarkers_byCellType_avgexp_byGroups.rds")
-
-rstudioapi::
 ```
 
 # fxn: heatmapCS

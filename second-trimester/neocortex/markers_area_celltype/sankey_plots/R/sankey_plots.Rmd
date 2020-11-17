@@ -900,7 +900,7 @@ prepareMarkers <- function(markers.df = markers.df) {
                                 
                   # Optional: Combine levels 
                     # Combine ages and areas into meta-areas (regions) & meta-ages (stages)
-                  mutate(individual = as_factor(individual),
+                    mutate(individual = as_factor(individual),
                          
                          region = fct_collapse(area, 
                                                    msp = c("motor", "somatosensory", "parietal")
