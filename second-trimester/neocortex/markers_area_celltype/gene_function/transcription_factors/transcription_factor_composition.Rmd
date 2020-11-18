@@ -10,6 +10,7 @@ p_load(patchwork)
 p_load(janitor)
 p_load(magrittr)
 p_load(Seurat)
+p_load(plotly)
 
 
 library(clusterProfiler)
@@ -32,12 +33,15 @@ load(file = "R/2020-11-15_transcription_factor_composition_workspace.RData")
 sms("Loaded image")
 ```
 
+# Read pair-wise gene marker intersection lists (from Sankey plots.)
 ```{r}
-pairs <- list(by_area_stage = read_rds("../../sankey_plots/out_intermediate/sankey_markers_pairs_exnLineage.rds"),
-              by_area = read_rds("../../sankey_plots/out_intermediate/sankey_markers_pairs_exnLineage_byArea_only.rds")
+pairs <- 
+  list(by_area_stage = read_rds("../../sankey_plots/out_intermediate/sankey_markers_pairs_exnLineage.rds"),
+       by_area = read_rds("../../sankey_plots/out_intermediate/sankey_markers_pairs_exnLineage_byArea_only.rds")
           )
 ```
 
+# Select biomaRt database and attributes to fetch
 ```{r}
 p_load(biomaRt)
 
@@ -54,7 +58,7 @@ searchAttributes(mart = ensembl, pattern = "GO")
 go_attributes <- searchAttributes(mart = ensembl, pattern = "GO ") %>% pull(name) %>% .[-4]
 ```
 
-# Transcription factors
+# Read transcription factor databases
 ```{r}
 tfs_db <- read_table2("animalDB/Homo_sapiens_TF.txt") %>% set_names(tolower(names(.)))
 tfs_db %<>% rename(hgnc_symbol = "symbol") %>% select(-id)
@@ -66,6 +70,8 @@ tf_cofactors_db %<>% rename(hgnc_symbol = "symbol")
 # 1,025 TF cofactors
 ```
 
+# Get GO annotations
+for all cell type-area marker genes
 ```{r fxn:getGO}
 getGO <- function(genes = x) {
   
@@ -95,7 +101,7 @@ getGO_map <- function(groups_tbl, celltype) {
 }
 ```
 
-# Radial glia: PFC: unique marker genes
+## Radial glia: PFC: unique marker genes
 ```{r}
 genes <- pairs$by_area %>% filter(item2 == "rg_pfc_unique") %>% .$genes %>% .[[1]]
 ```
@@ -117,14 +123,15 @@ goids %>% filter(name_1006 %>% str_detect("transcription")) %>% distinct(hgnc_sy
 goids %>% filter(name_1006 %>% str_detect("transcription")) %>% distinct(hgnc_symbol, name_1006, .keep_all = TRUE) %>% 
   ggplot() + geom_tile(aes(y = name_1006, x = as_factor(hgnc_symbol), fill = name_1006))
 ```
-# . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+## . . . . . . . . . . . . . . . . . . . . . . . . . . . .
  
-# Radial glia: PFC: all marker genes
+## Radial glia: PFC: all marker genes
 ```{r}
 # x <- pairs$by_area %>% filter(item2 == "rg_pfc_all") %>% pull(genes) %>% .[[1]]
 
 goids_x <- getGO(genes = x)
 ```
+
 ## Genes with expression-related annotations
 ```{r}
 getGenesWithExpressionGO <- function(go_df) {
@@ -212,12 +219,11 @@ tfs_and_cofactors <- go_dfs$go_df %>% map(~ getGenesWithTFannotation(go_df = .x)
 
 go_tfs_cofactors_df <- bind_cols(go_dfs, tfs_and_cofactors, go_df_expression)
 
-
-
 go_tfs_cofactors_df %>% select(- ends_with("_df")) %>%
 write_tsv("../transcription_factors/markers_by_area_go_tfs_cofactors_df.tsv")
 ```
-# 
+
+ 
 # Plots . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 ```{r}
 pairs$by_area %<>% rename(celltype_target = "cell_targetpe_target")
@@ -227,7 +233,6 @@ colors_area <- read_tsv("../../general/R/colors_area.tsv")
 colors_area$category <- factor(colors_area$category, levels = go_tfs_cofactors_df$region_target %>% droplevels %>% levels)
 
 colors_area <- colors_area %>% arrange(category)
-
 
 ```
 
@@ -371,72 +376,12 @@ getTFsAndGOs <- function(groups_tbl) {
 }
 ```
 
-# Marker TFs: expression across cells from other areas . . . . . . . . . . . . .
-
-## Dotplots . . . . . . . . . . . . . . . . . . . . . . . . . .
-```{r}
-ncx.exn <- read_rds("../../../ncx_data/exn_lineage/neocortex_exn_lineage_271k.rds")
-# 271K cells
-sms("Loaded ncx.exn")
-
-Idents(ncx.exn) <- 'cell.type'
 
 
-# Bin 'area' into 'region'
-# Bin 'age' into 'stage'
-# Set ident by 'region-stage'
 
-ncx.exn@meta.data %<>% set_names(tolower(names(.)))
-
-# Another way to combine areas into regions.
-  # area_combined = case_when(area %>% str_detect("motor|somatosensory|parietal") ~ "msp"
-  # TRUE ~ tolower(area))
-  # metadata %>% mutate(area_combined = factor(x = area_combined, 
-  #                                            levels = c('pfc', 'msp', 'temporal', 'v1'))
-
-
-# From `sankey_plots.Rmd`
-metadata <- ncx.exn@meta.data %>% 
-              mutate(cell_type = tolower(cell.type),
-                     individual = as_factor(tolower(individual)),
-                     stage = fct_collapse(individual,
-                                          early = c("gw14", "gw16", "gw17"),
-                                          mid = c("gw18_2", "gw18", "gw19_2", "gw19", "gw20_31", "gw20_34", "gw20"),
-                                          late = c("gw22", "gw22t", "gw25")),
-                     area = factor(tolower(area), 
-                                   levels = c('pfc', 'motor', 'somatosensory', 'parietal', 'temporal', 'v1')),
-                     region = fct_collapse(area, 
-                                           msp = c("motor", "somatosensory", "parietal"))
-                     ) %>%
-                     unite("region_stage", region, stage, sep = "_", remove = FALSE) %>%
-                     unite("celltype_stage", cell_type, stage, sep = "_", remove = FALSE) %>%
-                     unite("celltype_region", cell_type, region, sep = "_", remove = FALSE) %>%
-                     unite("stage_area", stage, area, sep = "_", remove = FALSE)
-
-ncx.exn@meta.data <- metadata
-# [2020-11-16] Saved new version of ncx.exn  with updated metadata
-# write_rds(ncx.exn, "../../../ncx_data/exn_lineage/neocortex_exn_lineage_271k.rds")
-```
-
-# Summarize metadata variables
-```{r}
-df_barPlot <- function(df, variable) { 
-  
-  variable <- enquo(variable)
-  p <- df %>% ggplot + geom_bar(aes(y = !!variable))
-  print(p)
-}
-
-ncx.exn@meta.data %>% ggplot + geom_bar(aes(y = region_stage))
-ncx.exn@meta.data %>% ggplot + geom_bar(aes(y = individual))
-ncx.exn@meta.data %>% ggplot + geom_bar(aes(y = cell_type))
-ncx.exn@meta.data %>% ggplot + geom_bar(aes(y = cell.type.area))
-ncx.exn@meta.data %>% ggplot + geom_bar(aes(y = celltype_region))
-# TODO put these all together in a single patchwork [2020-11-16]
-```
 
 ```{r}
-p_load(plotly)
+
 #TODO [2020-11-13]
 # [x] Arrange 'region' as factor
 # [] Join with gene scores ? Combine gene scores of different ages into their stage.
@@ -470,6 +415,7 @@ dotplot %>% ggplotly()
 ggsave(plot = dotplot, "out/plots/dotplot_rg_early.pdf", width = 20, height = 3)
 ```
 
+## Get lists of genes
 ```{r}
 factor_order <- list(
 celltype = as_factor(c('rg', 'ipc', 'neuron')),
@@ -497,136 +443,14 @@ my_tfs <- tfs_gos_byStage %>% filter(group %>% str_detect('rg_pfc')) %>%
   
   genes <- reduce(genes_list, c) %>% unique
   
-  ncx.exn@meta.data %<>% arrange(stage, region) %>%
-    mutate(region_stage = as_factor(region_stage))
-  
-  ncx.exn@meta.data %<>% arrange(stage, area) %>%
-    mutate(stage_area = as_factor(stage_area))  
+
   
 ```
-```{r}
-Idents(ncx.exn) <- 'cell_type'
-
-dotplots_rg_pfc_byregion <- map(genes_list, ~ DotPlot(cols =  "RdYlBu",
-                          dot.min = 0.02,
-                          object = test_2,
-                          idents = 'rg',
-                          features = .x,
-                          group.by = 'region_stage',
-                          # split.by = 'area',
-                            scale = TRUE) + 
-  theme(axis.text.x = element_text(angle = 45)) 
-)
-  
-ncx.exn@meta.data$area
-# TODO @issue Split.by does not respect factor order
-```
-# Add GW16 + GW19_2 
-```{r}
-data.dir <- "~/cse-phd/second-trimester/neocortex/ncx_data/"
-
-load("../../../../neocortex/ncx_data/gw16neo.RData")
-load("../../../../neocortex/ncx_data/gw19_2.RData")
-gw16_cluster_ids <- read_tsv(paste0(data.dir, "gw16neo_clusteridentity.txt"))
-gw19_cluster_ids <- read_tsv(paste0(data.dir, 'gw19_2_clusteridentity_wholebrain_annotated.txt'))
-
-# Clean up cluster annotation tables and add to metadata
-gw19_cluster_ids %>% df_barPlot(variable = cell_type)
-gw16_cluster_ids %>% df_barPlot(variable = cell_type)
-
-# gw16
-
-gw16_cluster_ids %<>% cleanClusterIDs
-gw19_cluster_ids %<>% cleanClusterIDs
-
-gw16neo@meta.data %<>% cleanMetadata
-gw19_2@meta.data %<>% cleanMetadata
-  
-# Functions . . . . . . . . . . . . . . . 
-
-cleanClusterIDs <- function(cluster_ids) {
-  
- cluster_ids <- cluster_ids %>% 
-                  mutate(cell_type = cell_type %>% 
-                                      str_replace("Radial Glia", "rg") %>% 
-                                      str_replace("Excitatory Neuron", "neuron") %>%
-                                       tolower)
-  return(cluster_ids)            
-}
-
-# . . . . . . . . . . . . . . . . . . .
-
-cleanMetadata <- function(meta.data) {
-    
-                     meta.data <- meta.data %>%
-                                  add_column(cell_name = rownames(.), .before = 1) %>%
-                                    set_names(tolower(names(.))) %>%
-                                      mutate(across(.cols = c(area, structure, individual), .f = tolower)) %>%
-                                        left_join(gw16_cluster_ids) %>%
-                                          set_rownames(.$cell_name)
-                     
-                     return(meta.data)
-                     
-                    }
-```
-
-## AddSamples to ncx.exn
-```{r}
-# Update gw16 and ge19_2 to v3
-# Subset only neocortex cell from gw19_2. (gw16 is only neocortex; Aparna)
-gw19_2_ncx <- UpdateSeuratObject(gw19_2) %>% subset(subset = `structure` == "neocortex")
-gw16_ncx <- UpdateSeuratObject(gw16neo)
-ncx.exn <- UpdateSeuratObject(ncx.exn) 
-
-# [Satija Lab: Merge](https://satijalab.org/seurat/v3.2/merge_vignette.html)
-
-test <- merge(x = gw19_2_ncx, y = gw16_ncx, 
-                 merge.data = TRUE,
-                 project = "ncx_exn_full", add.cell.ids = c("gw19_2", "gw16"))
-
-# > Error in RowMergeMatricesList(mat_list = all.mat, mat_rownames = all.rownames,  : 
-#   Expecting a string vector: [type=NULL; required=STRSXP]
-    # [x] Update Seurat version for ncx_exn? Didn't work
-    # TODO [] Is it because of different metadata columns?
-
-result <- list(ncx.exn, test) %>% map(.f = function(x = .x) {
-                                  meta.data <- x@meta.data
-                                  meta.data <- set_names(meta.data, 
-                                                         str_replace_all(names(meta.data), 
-                                                                     "[.]", "_"))
-                                  x@meta.data <- meta.data
-                                  return(x)
-})
-
-result %>% map(~.x@meta.data %>% names)
-
-metadata_common <- intersect(result[[1]]@meta.data %>% names, result[[2]]@meta.data %>% names)
-
-ncx.exn@meta.data <- result[[1]]@meta.data[ , metadata_common]
-test@meta.data <- result[[2]]@meta.data[ , metadata_common]
-
-test_2 <- merge(x = ncx.exn, y = test, 
-                 merge.data = TRUE,
-                 project = "ncx_exn_full", add.cell.ids = c("ncx_exn", "gw16_19_2"))
-
-test_2@meta.data %>% glimpse
-
-# Add counts back!!!
-ncx_counts <- read_rds(paste0(data.dir, "exn_lineage/ncx.v3.exn_counts.rds"))
-ncx.exn@assays$RNA@counts <- ncx_counts
 
 
 
-  
-  
-# Some cell names are duplicated across objects provided. Renaming to enforce unique cell names.
-# TODO What are the names of gw19_2 cells like?
 
-# [seurat v3.0 merge two objects with different number of features | satijalab/seurat](https://github.com/satijalab/seurat/issues/1676)
 
-# 🟥 [2020-11-16] NEXT: Fix metadata for merged object so that I can run the DotPlot by area / region / stage.
-# Go to DotPlot from here.
-```
 
 ##  Violin Plots
 ```{r}
