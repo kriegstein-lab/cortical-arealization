@@ -1,0 +1,240 @@
+# date: 2020-11-18
+
+# Add GW16 exn to ncx.exn and clean up / expand metadata with cluster ids 
+# and attributes for making TF expression dotplots.
+
+```{r}
+data.dir <- "~/cse-phd/second-trimester/neocortex/ncx_data/"
+  
+ncx.exn <- read_rds(paste0(data.dir\n"exn_lineage/neocortex_exn_lineage_271k.rds"))
+# 271K cells
+
+load(paste0(data.dir, "gw16neo.RData"))
+load(paste0(data.dir, "gw19_2.RData"))
+gw16_cluster_ids <- read_tsv(paste0(data.dir, "gw16neo_clusteridentity.txt"))
+gw19_cluster_ids <- read_tsv(paste0(data.dir, 'gw19_2_clusteridentity_wholebrain_annotated.txt'))
+
+sms("Loaded objects")
+```
+
+# Clean up cluster annotation tables and add cluster info to metadata.
+
+## Functions . . . . . . . . . . . . . . . 
+```{r}
+cleanClusterIDs <- function(cluster_ids) {
+  
+ cluster_ids <- cluster_ids %>% 
+                  mutate(cell_type = cell_type %>% 
+                                      str_replace("Radial Glia", "rg") %>% 
+                                      str_replace("Excitatory Neuron", "neuron") %>%
+                                       tolower)
+  return(cluster_ids)            
+}
+```
+
+```{r}
+cleanMetadata <- function(meta.data, cluster_ids) {
+    
+                     meta.data <- meta.data %>%
+                                  add_column(cell_name = rownames(.), .before = 1) %>%
+                                    set_names(tolower(names(.))) %>%
+                                      mutate(across(.cols = c(area, structure, individual), .f = tolower)) %>%
+                                        left_join(cluster_ids) %>%
+                                          set_rownames(.$cell_name)
+                     
+                     return(meta.data)
+                     
+                    }
+```
+
+```{r}
+# gw19_cluster_ids %>% df_barPlot(variable = cell_type)
+# gw16_cluster_ids %>% df_barPlot(variable = cell_type)
+
+# gw16
+gw16_cluster_ids %<>% cleanClusterIDs
+gw19_cluster_ids %<>% cleanClusterIDs
+
+gw16neo@meta.data %<>% cleanMetadata(cluster_ids = gw16_cluster_ids)
+gw19_2@meta.data %<>% cleanMetadata(cluster_ids = gw19_cluster_ids)
+```
+
+## Merge samples with ncx.exn
+```{r}
+# [Satija Lab: Merge](https://satijalab.org/seurat/v3.2/merge_vignette.html)
+
+# 1. Update gw16 and gw19_2 to v3
+# 2. Subset only neocortex cells from gw19_2. (gw16 is only neocortex; Aparna)
+# 3. Update ncx.exn
+gw19_2_ncx <- UpdateSeuratObject(gw19_2) %>% subset(subset = `structure` == "neocortex")
+gw16_ncx <- UpdateSeuratObject(gw16neo)
+# Add counts back to ncx.exn!!!
+ncx_counts <- read_rds(paste0(data.dir, "exn_lineage/ncx.v3.exn_counts.rds"))
+ncx.exn@assays$RNA@counts <- ncx_counts
+ncx.exn <- UpdateSeuratObject(ncx.exn) 
+
+# Temporary .rdata file in case the merge crashes again:
+save(gw16_ncx, gw19_2_ncx, ncx.exn, 
+     file = paste0(data.dir, "ncx.exn_gw16_gw19_2_v3.RData"))
+
+
+
+ncx_full <- merge(x = ncx.exn, y= c(gw16_ncx, gw19_2_ncx),
+                 merge.data = TRUE,
+                 project = "ncx_exn_full"
+                 # add.cell.ids = c("gw19_2", "gw16") This appends to the actual cell_id (rowname)
+              )
+# Warning message:
+#In CheckDuplicateCellNames(object.list = objects) :
+#  Some cell names are duplicated across objects provided. Renaming to enforce unique cell names.
+
+> ncx_full
+# An object of class Seurat 
+# 30250 features across 368806 samples within 1 assay 
+# Active assay: RNA (30250 features, 0 variable features)
+```
+
+# Summarize metadata variables
+```{r}
+df_barPlot <- function(df, variable) { 
+  
+  variable <- enquo(variable)
+  p <- df %>% ggplot + geom_bar(aes(y = !!variable))
+  print(p)
+}
+
+var_plots <- quos(cell_type, individual, structure) %>% 
+              map(~ df_barPlot(ncx_full@meta.data , variable = !!.x))
+
+# [x] Put these all together in a single patchwork [2020-11-16]
+wrap_plots(var_plots, nrow=2) + facet_wrap(~individual)
+
+df_barPlot(ncx_full@meta.data , variable = cell_type) + facet_wrap(~individual)
+```
+
+Add _2 to gw19 cells $individual
+```{r}
+ncx_full@meta.data %<>% mutate(individual = case_when(cell_name %>% str_detect("gw19_2") ~ "gw19_2",
+                                                                                    TRUE ~ individual))
+
+gw19_2@meta.data %<>% mutate(individual = case_when(cell_name %>% str_detect("gw19_2") ~ "gw19_2",
+                                                                                  TRUE ~ individual))
+
+gw19_2@meta.data %>% filter(cell_name %>% str_detect("gw19_2")) %>% count(individual)
+ncx_full@meta.data %>% filter(cell_name %>% str_detect('GW16')) %>% count(individual)
+✅
+
+ncx_full@meta.data %>% set_rownames(ncx_full@meta.data$cell_name)
+# Error in `.rowNamesDF<-`(x, value = value) : duplicate 'row.names' are not allowed
+
+
+gw19_2_ncx
+# 43665 cells
+ncx_full@meta.data %>% filter(cell_name %>% str_detect('gw19_2'))
+# 52,293
+ncx.exn@meta.data %>% filter(cell.name %>% str_detect('gw19_2'))
+# It was already there!!! 😭
+```
+
+Fix metadata column names before merging objects.
+```{r}
+seurat_objects <- list(ncx.exn, gw16_ncx, gw19_2_ncx) %>% 
+                      map(.f = function(x = .x) {
+                        x@meta.data <- set_names(x@meta.data, 
+                                                 str_replace_all(names(x@meta.data), 
+                                                                "[.]", "_"))
+                        return(x)
+                        })
+
+seurat_objects %>% map(~.x@meta.data %>% rownames %>% head)
+
+seurat_objects[[1]]@meta.data %<>% set_rownames(.$cell_name)
+
+metadata_common <- intersect(seurat_objects[[3]]@meta.data %>% names, 
+                             seurat_objects[[1]]@meta.data %>% names)
+
+seurat_objects[[1]]@meta.data %<>% .[ , metadata_common]
+
+ncx_full <- merge(x = seurat_objects[[1]], y = seurat_objects[[2]],
+                 merge.data = TRUE,
+                 project = "ncx_exn_full"
+                 # add.cell.ids = c("gw19_2", "gw16") This appends to the actual cell_id (rowname)
+              )
+
+ncx_full@meta.data %>% split(.$individual) %>% map(~ rownames(.x) %>% print)
+
+ncx_full@meta.data %<>% mutate(individual = case_when(cell_name %>% str_detect("gw19_2") ~ "gw19_2",
+                                                                                    TRUE ~ individual))
+
+
+# FIXED:
+  # ERROR Some cell names are duplicated across objects provided. Renaming to enforce unique cell names.
+  # Error in names(new.idents) <- rownames(x = combined.meta.data) : 
+  # 'names' attribute [596535] must be the same length as the vector [325141]
+  # [x] What are the names of gw19_2 cells like? They include 'gw19_'.
+
+# [seurat v3.0 merge two objects with different number of features | satijalab/seurat]
+# (https://github.com/satijalab/seurat/issues/1676)
+```
+
+## Clean up metadata for ncx_full merged object and expand with the variables we need for plots.
+
+## Expand metadata
+```{r}
+var_plots <- quos(cell_type, individual, structure) %>% 
+              map(~ df_barPlot(ncx_full@meta.data , variable = !!.x))
+
+# [x] Put these all together in a single patchwork [2020-11-16]
+wrap_plots(var_plots, nrow=2) + facet_wrap(~individual)
+# [x] [2020-11-16] NEXT: Fix metadata for merged object so that I can run the DotPlot by area / region / stage.
+  # Go to DotPlot from here.
+```
+
+
+# Clean up and expand metadata
+```{r}
+# [x] 
+  # [x] Change 'individual' to gw19_2 for cells with gw19_2 (currently gw19)
+  # [x] cell_type tolower
+  # [x] factor areas, regions, individuals, stages.
+    # [x] Bin 'area' into 'region'
+    # [x] Bin 'age' into 'stage'
+  # [x] Make Neocortex -> neocortex
+  # Subset only rg, ipc, neuron #nice-to-have
+
+# From `sankey_plots.Rmd`
+
+expandMetadata <- function(meta.data) {
+  
+            meta.data %>% set_names(names(.) %>% tolower) %>%
+              mutate(cell_type = tolower(cell_type),
+                     structure = tolower(structure),
+                     individual = as.factor(tolower(individual)), 
+                     # use base as.factor so it orders them numerically
+                     stage = fct_collapse(individual,
+                                          early = c("gw14", "gw16", "gw17"),
+                                           mid = c("gw18_2", "gw18", "gw19_2", 
+                                                   "gw19", "gw20_31", "gw20_34", "gw20"),
+                                           late = c("gw22", "gw22t", "gw25")),
+                     area = factor(tolower(area), 
+                                   levels = c('pfc', 'motor', 'somatosensory', 
+                                              'parietal', 'temporal', 'v1')),
+                     region = fct_collapse(area, 
+                                           msp = c("motor", "somatosensory", "parietal"))
+                     ) %>%
+                     unite("stage_region", stage, region, sep = "_", remove = FALSE) %>%
+                     unite("stage_area", stage, area, sep = "_", remove = FALSE) %>%
+                     unite("celltype_stage", cell_type, stage, sep = "_", remove = FALSE) %>%
+                     unite("celltype_region", cell_type, region, sep = "_", remove = FALSE)
+
+}
+
+metadata <- ncx_full@meta.data %>% expandMetadata
+metadata %>% sample_frac(0.1) # ✅ 
+ncx_full@meta.data <- metadata
+
+writeLines("[2020-11-17] Saved new version of ncx_exn with gw16 and updated metadata. 
+             > write_rds(ncx_full, paste0(data.dir, 'exn_lineage/neocortex_exn_seuratobj.rds'))
+             TODO Still has non-excitatory lineage cells from gw16; Remove these.", 
+             con = paste0(data.dir, 'exn_lineage/neocortex_exn_seuratobj.info'))
+```

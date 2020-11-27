@@ -771,6 +771,7 @@ markers <- FindMarkers(s.obj, slot = "scale.data",
 ## Clean DE genes table.
 Calculate enrichment ratio, filter genes w. adj p-value < 0.05, sort table.
 Positive values indicate that the feature is more highly expressed in the first group.
+
 ```{r filter-markers, echo=TRUE}
 markers %<>% rownames_to_column("gene") %>%
   mutate(enrich.ratio = pct.1 / pct.2,

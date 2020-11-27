@@ -6,51 +6,179 @@ output: html_notebook
 ```{r}
 # 2020-10-26_07:35 
 save.image("../R/2020-10-26_sankey_plots.RData")
-
 ```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Read data: gene markers
-  • From:
-    `../aparna/homefiles/Fall2019_finalclustering_secondtrimester/_neocortex_*_byarea_clustermarkers.txt`
-    
+# READ AREAL MARKERS
+ - Imported from:
+ `../aparna/homefiles/Fall2019_finalclustering_secondtrimester/_neocortex_*_byarea_clustermarkers.txt`
+ Result of:
+  `FindMarkers` for each area vs everything else.
+    - with cells of the same cell type
+    - within each individual.
+
+[2020-11-19] Combined and saved in:
+`df_markers_by_area_celltype_indiv.txt`
+
 ```{r read-gene-markers}
-dir <- "../../../area_specific_markers/tbls_markers_by_celltype_and_area/"
-
+dir <- "../../in/tbls_markers_by_celltype_and_area/"
 files <- fs::dir_ls(dir, regexp = "txt")
-       
-cell.type <- c("rg", "neuron", "ipc") %>% as.list %>% set_names(unlist(.))
-
-# files <- files[str_detect(tolower(files), cell.type$rg)]
-
-read_and_add <- function(file) {
-  
-     metadata <- str_match(file, ".*/(.*)_neocortex_([:alnum:])_byarea.*") %>% tolower
-     df = read.table(file)
-     
-     df$individual = metadata[2]
-     df$celltype = metadata[3]
-     df$file = file
-     
-     df %<>% select(gene, everything()) %>% rename(area = "cluster")
-     return(df)
-}
-
+cell.type <- lst("rg", "neuron", "ipc")
 
 df.markers <- map_dfr(.x = files,
-                   .f = read_and_add)
+                      .f = read_and_add) %>% 
+  
+                mutate( pct.2 = (pct.2 + 0.001),
+                      gene.ratio = (pct.1 / pct.2),
+                      gene.score = avg_logFC * gene.ratio,
+                      
+                      across(.cols = where(is.numeric), .fns = ~round(.x, 5)),
+                      across(.cols = c(where(is.character), -gene), .fns = ~tolower(.x))
+                )
 
-df.markers <- df.markers %>% mutate( pct.2 = (pct.2 + 0.001),
-                                     gene.ratio = (pct.1 / pct.2),
-                                     gene.score = avg_logFC * gene.ratio,
-                                    
-                                    across(.cols = where(is.numeric), .fns = ~round(.x, 5)),
-                                    across(.cols = c(where(is.character), -gene), .fns = ~tolower(.x))
-)
+df.markers %<>% mutate(file = str_remove(file, '../../in/tbls_markers_by_celltype_and_area/')) %>%
+  select(gene, p_val_adj, avg_logFC, gene.score, gene.ratio, pct.1, pct.2, everything())
 
+write_tsv(df.markers, '../../in/tbls_markers_by_celltype_and_area/df_markers_by_area_celltype_indiv.txt')
+```
+
+```{r}
+.stash <- new_environment()
+.stash$df.markers <- df.markers
+
+df.markers <- df.markers %>% 
+                 filter(celltype %in% c("rg", "ipc", "neuron")) %>%
+                 left_join(colors.area) %>% 
+                 mutate(area = factor(area, levels = colors.area$area),
+                        region = factor(region, levels = colors.area$area),
+                        celltype = factor(celltype, levels = c("rg", "ipc", "neuron"))
+                        )
+```
+
+```{r}
+read_and_add <- function(file) {
+
+  metadata <- str_match(file, 'tbls_markers_by_celltype_and_area/(.*)_neocortex_([:alpha:]+).*txt') %>%
+                tolower
+  
+  df <- read.table(file)
+  df$individual = metadata[2]
+  df$celltype = metadata[3]
+  df$file = file
+     
+  df %<>% select(gene, everything()) %>% rename(area = "cluster")
+  return(df)
+}
+```
+
+Note: `by_area` files contain the result of `FindMarkers` within each individual 
+(not cell-type specific.)
+```{r}
+df.markers %>% filter(str_detect(file, 'neocortex_byarea'))
+```
+
+# Prepare `df.markers` for pairwise intersection calculation.
+(Prepare for `buildSankey`)
+```{r}
+# Add column with cell type.
+# markers.ct %<>% purrr::imap( ~ .x$all.indiv %>% mutate(cell.type = .y))
+
+# markers %>% split(markers$individual)
+# Plot only early / mid / late stage links. (filter)
+
+prepareMarkers <- function(markers.df = markers.df) {
+                
+                 # Filter by p-value
+                 markers.df %>% dplyr::filter(p_val_adj <= 0.05) %>%
+                   # [Combine levels]
+                     # Combine ages and areas into meta-areas (regions) & meta-ages (stages)
+                    mutate(individual = as_factor(individual),
+                         
+                           region = fct_collapse(area, 
+                                                   msp = c("motor", "somatosensory", "parietal")
+                                                   ),
+                                  
+                           stage = fct_collapse(individual,
+                                                early = c("gw14", "gw16", "gw17"),
+                                                mid = c("gw18_2", "gw18", "gw19_2", "gw19",
+                                                        "gw20_31and34", "gw20"),
+                                                late = c("gw22both", "gw25")
+                                               )) %>%
+                      # Merge columns for easier manipulation
+                      unite("area.individual", area, individual, sep = "_", remove = FALSE) %>%
+                      unite("region.stage", region, stage, sep = "_", remove = FALSE) %>%
+                      unite("group", celltype, region.stage, sep = "_", remove = FALSE) %>%
+
+                      select(gene, group, celltype, region, stage, region.stage, area,
+                             individual, area.individual, everything() )
+}
+```
+
+df.markers has duplicate genes which may have appeared for a given group several times.
+```{r prepareMarkers}
+df.markers <- df.markers %>% prepareMarkers()
+# This still has duplicate genes in each combined 'group'.
+
+df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, celltype) %>% plot_bar
+
+df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, region) %>% plot_bar
+
+df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, individual) %>% plot_bar
+
+df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, stage) %>% plot_bar
+
+df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, area) %>% plot_bar
+
+df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, region.stage) %>% plot_bar
+
+df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, group) %>% plot_bar
+
+
+# group : celltype:region:stage (region:stage by cell type)
+
+# getDistinct 
+# TODO [] Turn into a function
+# Collapse genes that appear > 1x in a group (eg genes in neuron:early:msp)
+df.markers.distinct <- df.markers %>% 
+                          distinct(gene, group, .keep_all = TRUE) %>% as.tibble()
+                                             #  .keep.all: If TRUE, keep all variables in .data
+```
+
+
+```{r buildSankey_df.markers.distinct}
+
+x <- buildSankey(markers = df.markers.distinct)
+
+unique(na.exclude(markers$celltype)
+      
+       
+markers.split <- markers.plot %>% split(.$celltype) 
+
+sankey.plots.all <- lapply(markers.split[c("rg", "neuron", "ipc")], function(x) {
+  
+  markers.plot.x <- x %>% filter(p_val_adj <= 0.05) %>%
+                        distinct(gene, meta.area.age, .keep_all = TRUE)
+
+stages <-  list(
+  all = buildSankey(markers = markers.plot.x, stage = NULL, dir = "../out/all_areas"),
+  early = buildSankey(markers = markers.plot.x, stage = "early", dir = "../out/all_areas"),
+  mid = buildSankey(markers = markers.plot.x, stage = "mid", dir = "../out/all_areas"),
+  late = buildSankey(markers = markers.plot.x, stage = "late", dir = "../out/all_areas")
+  )
+  return(stages)
+}
+  )
+
+write_rds(sankey.plots.all, "../sankey/out/sankey_plots.rds")
+
+df.markers.distinct %>% skim
+```
+
+# Data exploration
+```{r}
 df.markers %>% plot_bar()
 
 df.markers[complete.cases(df.markers), ] %>% select(-gene, -file) %>% inspect_cat %>% show_plot()
@@ -64,17 +192,6 @@ df.markers <- df.markers[complete.cases(df.markers), ]
 
 Plot counts per group (cell type / area)
 ```{r plot-counts-bar}
-
-.stash <- new_environment()
-.stash$df.markers <- df.markers
-
-df.markers <- df.markers %>% 
-                 filter(celltype %in% c("rg", "ipc", "neuron")) %>%
-                 left_join(colors.area) %>% 
-                 mutate(area = factor(area, levels = colors.area$area),
-                        region = factor(region, levels = colors.area$area),
-                        celltype = factor(celltype, levels = c("rg", "ipc", "neuron"))
-                        )
 
 
   # arrange(match(area, colors.area))
@@ -95,7 +212,6 @@ colors.area %<>% mutate(category = str_replace(category, "somato", "somatosensor
   rename(area = "category")
 ```
 
-
 ```{r plot-counts-smooth}
 df.markers %>% group_by(celltype) %>% count(individual, area) %>%
     ggplot(aes(x = individual, y = n, group = area, color = area)) + 
@@ -106,13 +222,15 @@ facet_grid(rows = vars(celltype), cols = vars(area), scale = "free_y")  +
   theme_minimal()
 ```
 
+# BUILD SANKEY PLOTS
+# . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 # fxn: buildSankey
 
 Counts the number of shared genes between pairs of groups of cells.
 ```{r}
 # ARGUMENTS
 # ===========
-# 1. A `markers` dataframe 
+# 1. A markers dataframe (df.markers)
 # 2. An optional stage (early/mid/late).
 # 3. An out.dir
 
@@ -388,10 +506,8 @@ setNames( out , nms )
 # [x] this goes in `buildSankey`
   # 2020-10-23 Moved up 
 
-# TODO
-# Proportion of genes unique vs shared? 
+# [x] Proportion of genes unique vs shared? 
 ```
-
 
 ```{r 20201021_normalizePairCounts}
 
@@ -480,26 +596,25 @@ ggplot(x) +
   scale_color_manual(values = x$color.region %>% as.character() %>% unique)
 ```
 
-# . . . . . . . . . . . . . . . . . . . . .
-
+# . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 # gvisSankey
 
-```{r gvisSankey}
+```{r}
 # Start with df.links
-# df.links: A table with the # of shared gene markers between pairs of cell groups.
+  # A table with the # of shared gene markers between pairs of cell groups.
 # Source and target are in both name and number form
 
 # Rows: 144
 # Columns: 9
-# $ source.name       <chr> "shared_rg_msp_early", "shared_rg_msp_early", "shared_rg_msp_early", "shared_rg_msp_early"…
-# $ target.name       <chr> "to_neuron_msp_early", "to_neuron_msp_late", "to_neuron_msp_mid", "to_neuron_pfc_early", "…
-# $ link.group.source <chr> "msp", "msp", "msp", "msp", "msp", "msp", "msp", "msp", "msp", "msp", "msp", "msp", "v1", …
-# $ link.group.target <chr> "msp", "msp", "msp", "pfc", "pfc", "pfc", "temporal", "temporal", "temporal", "v1", "v1", …
-# $ n                 <dbl> 113, 71, 116, 31, 27, 72, 13, 40, 47, 47, 16, 79, 151, 174, 264, 54, 62, 119, 74, 97, 121,…
-# $ source            <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, …
-# $ target            <dbl> 12, 20, 16, 14, 21, 19, 15, 23, 17, 13, 22, 18, 12, 20, 16, 14, 21, 19, 15, 23, 17, 13, 22…
-# $ color.rg          <chr> "#FFA500", "#FFA500", "#FFA500", "#FFA500", "#FFA500", "#FFA500", "#FFA500", "#FFA500", "#…
-# $ color             <chr> "orange", "orange", "orange", "#e72718", "#e72718", "#e72718", "#ff61e8", "#ff61e8", "#ff6…
+# $ source.name       <chr> "shared_rg_msp_early", "shared_rg_msp_early", "shared_rg_msp_early",
+# $ target.name       <chr> "to_neuron_msp_early", "to_neuron_msp_late", "to_neuron_msp_mid",
+# $ link.group.source <chr> "msp", "msp", "msp", "msp", "msp", "msp", "msp", "msp", "msp", "msp", 
+# $ link.group.target <chr> "msp", "msp", "msp", "pfc", "pfc", "pfc", "temporal", "temporal", 
+# $ n                 <dbl> 113, 71, 116, 31, 27, 72, 13, 40, 47, 47, 16, 79, 151, 174, 264, 54, 62,
+# $ source            <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+# $ target            <dbl> 12, 20, 16, 14, 21, 19, 15, 23, 17, 13, 22, 18, 12, 20, 16, 14, 21, 19,
+# $ color.rg          <chr> "#FFA500", "#FFA500", "#FFA500", "#FFA500", "#FFA500", "#FFA500", 
+# $ color             <chr> "orange", "orange", "orange", "#e72718", "#e72718", "#e72718", "#ff61e8"
 
 gvis.df <- df.links %>% filter(str_detect(.$source.name, "pfc")) %>%
   
@@ -532,28 +647,42 @@ comparisons <- tribble(
                         "ipc",  "ipc",
                         "neuron", "neuron"
                 )
-
-
-gvis.df_self <-  purrr::pmap(.l = comparisons, .f = ~ pairs.norm %>% select(-genes) %>%
-                # mutate(n = as.integer(n)) %>%  [not sure if necessary]
-                                        filter(item1 %>% str_detect(..1) & item2 %>% str_detect(..2)) %>% 
-                                          filter(! item2 %>% str_detect("all|shared")) %>%
-                                          arrange(celltype_source, stage_source, region_source, stage_target, region_target) %>% 
-                                          mutate(item2 = str_remove(item2, "_unique"))) %>%
-                                          tibble(item1_item2 = purrr::pmap_chr(.l = comparisons, ~ glue(..1, ..2, .sep = "_to_")), df = .)
-
-
 ```
 
 ```{r}
+gvis.df_self <-  purrr::pmap(.l = comparisons, .f = ~ pairs.norm %>% select(-genes) %>%
+                # mutate(n = as.integer(n)) %>%  [not sure if necessary]
+                          filter(item1 %>% str_detect(..1) & item2 %>% str_detect(..2)) %>% 
+                            filter(! item2 %>% str_detect("all|shared")) %>%
+                              arrange(celltype_source, stage_source, region_source, 
+                                      stage_target, region_target) %>% 
+                           mutate(item2 = str_remove(item2, "_unique"))) %>%
+                           tibble(item1_item2 = pmap_chr(.l = comparisons, 
+                                                         ~ glue(..1, ..2, .sep = "_to_")), df = .)
+
 gvis.df_self$df
 ```
 
-
 ```{r}
+# Get groups in order in which they appear
+
+groups.order <- gvis.df[[1]] %>% split(f = factor(.$item1, levels = unique(.$item1))) %>% 
+                      map(~ c(unique(.$item1), .$item2)) %>% 
+                          unlist(use.names = FALSE) %>% unique %>% 
+                              tibble(group = .)
+
+# Join with colors
+colors.area <- read_tsv("../../colors_area.tsv")
+groups.order <- left_join(groups.order, groups.metadata %>% select(-starts_with("color")))
+groups.order <- left_join(groups.order, colors.area, by = (c("region" = "category")))
+                          
+colors <- paste("['", paste(groups.order$color.region, collapse = "\',\'"),"']", sep = "")
+
 sankey.same.celltype <- pmap(gvis.df_self, ~ make_gvisSankey(chart_id = ..1, gvis_df_x = ..2))
+```
 
-
+# fxn: make_gvisSankey
+```{r}
 make_gvisSankey <- function(chart_id, gvis_df_x) {
   
   gvis_df_x %<>% mutate(item2 = paste0("to_", item2))
@@ -571,15 +700,14 @@ make_gvisSankey <- function(chart_id, gvis_df_x) {
                           
   colors <- paste("['", paste(groups.order$color.region, collapse = "\',\'"),"']", sep = "")
   
-  
-  
-  
+
   plot <- gvisSankey( chartid = paste("sankey", chart_id, sep = "_"),
-                data =  gvis_df_x %>% select(item1, item2, n), # Doesn't like having all those extra columns
+                data =  gvis_df_x %>% select(item1, item2, n), 
+                  # Doesn't like having all those extra columns
                 from = "item1", 
-                 to = "item2", 
-                 weight = "n",
-                 options = list(width = 1000,
+                to = "item2", 
+                weight = "n",
+                options = list(width = 1000,
                                 height = 800,
                                 backgroundColor = "black",
                                 tooltip = "{ 
@@ -598,20 +726,17 @@ make_gvisSankey <- function(chart_id, gvis_df_x) {
                                                   label: { color: '#871b47' } , 
                                                   link: { colorMode: 'gradient' }
                           
-                                                 }"
-                                            )
+                                                 }")
                                         )
             )
-
-# print(plot, tag = "html", file = glue(path, chart_id, ".html"))
-
-return(list(groups.order, colors, gvis_df_x, plot))
+  # print(plot, tag = "html", file = glue(path, chart_id, ".html"))
+  return(list(groups.order, colors, gvis_df_x, plot))
 
 }
+```
 
-
-
-
+Printing HTML shenanigans
+```{r}
 options(op)
 plot(x)
 plot(x, tag = 'html')
@@ -632,16 +757,7 @@ op <- options(gvis.print.tag = 'html')
 # https://stackoverflow.com/a/18236653
 print(x, tag ="chart", file="../sankey/out/test.html") 
 
-
-
-
-# Get groups in order in which they appear
-
-groups.order <- gvis.df[[1]] %>% split(f = factor(.$item1, levels = unique(.$item1))) %>% 
-                      map(~ c(unique(.$item1), .$item2)) %>% 
-                          unlist(use.names = FALSE) %>% unique %>% 
-                              tibble(group = .)
-
+# Group ordering?
 # . . . . . . . . . . . . . .
 # Alternative ways I tried:
 # https://github.com/tidyverse/dplyr/issues/4531
@@ -651,67 +767,8 @@ groups.order <- gvis.df[[1]] %>% split(f = factor(.$item1, levels = unique(.$ite
 # gvis.df[[1]] %>% nest(gg = -item1) %>% mutate_at("gg",
 #                                                 purrr::map,
 #                                                 function(x) x$item2)
-
-
-# Pair with colors
-colors.area <- read_tsv("../../colors_area.tsv")
-groups.order <- left_join(groups.order, groups.metadata %>% select(-starts_with("color")))
-groups.order <- left_join(groups.order, colors.area, by = (c("region" = "category")))
-                          
-
-
-colors = paste("['", paste(groups.order$color.region, collapse = "\',\'"),"']", sep = "")
-"
-
-paste( "{ iterations: 0 , node: { colors : ", colors, "},")
-
-
-
 ```
 
-```{r}
-sankey.same.celltype %>% str
-```
-
-               
-```{javascript}
-
-colors.area
-colors: ['#ff2b1a', '#ff2b1a', '#ff2b1a', '#1c32ff', '#1c32ff', '#1c32ff' '#1c32ff','#1c32ff', '#1c32ff', '#1c32ff', '#1c32ff', '#1c32ff' '#1c32ff','#1c32ff', '#1c32ff']
-
-colors: ['#FF2B1A', '#FF2B1A', '#FF2B1A', '#1C32FF', '#1C32FF', 
-                                                      '#1C32FF' '#1C32FF','#1C32FF', '#1C32FF', '#1C32FF', 
-                                                      '#1C32FF', '#1C32FF' '#1C32FF','#1C32FF', '#1C32FF']
-
-
-colors: ['orange', 'orange', 'orange', '#e72718', '#e72718', 
-         '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 
-         'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 'orange', 'orange', 'orange', '#e72718', '#e72718',
-          '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 
-           'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 'orange', 'orange', 'orange',
-           '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3',
-            'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3',
-                         '#1b30f3', '#1b30f3', 'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8',
-                         '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718', '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3', 'orange', 'orange', 'orange', '#e72718', '#e72718', '#e72718',
-                         '#ff61e8', '#ff61e8', '#ff61e8', '#1b30f3', '#1b30f3', '#1b30f3'] 
-
-# Colors for PFC rg -> all neurons
-colors: ['#FF2B1A',
-'#e4840f',
-'#e4840f',
-'#e4840f',
-'#e72718',
-'#e72718',
-'#e72718',
-'#ff61e8',
-'#ff61e8',
-'#ff61e8',
-'#1b30f3',
-'#1b30f3',
-'#1b30f3',
-'#FF2B1A',
-'#FF2B1A']
-```
 
 ```{r}
 colors %<>% tibble(area = names(colors), color = .)
@@ -805,8 +862,7 @@ write_tsv(pairs.raw, "../sankey/out/pairs_raw_rg_to_neurons.tsv")
 ```
 
 ```{r}
-# [[Project: Sankey Plots]] #Roam
-# https://roamresearch.com/#/app/carmen-se/page/knEV4Gm_H
+
 
 x <- df.links %>% arrange(source.name, target.name) %>%  
   
@@ -881,119 +937,6 @@ df.linksq
 
 
 ## Make all Sankey plots for all stages.
-
-## Prepare `markers` df for pairwise intersection calculation.
-(Prepare for buildSankey)
-```{r}
-# Add column with cell type.
-
-# markers.ct %<>% purrr::imap( ~ .x$all.indiv %>% mutate(cell.type = .y))
-
-# markers %>% split(markers$individual)
-
-      # Plot only early / mid / late stage links. (filter)
-
-prepareMarkers <- function(markers.df = markers.df) {
-                
-                 # Filter by p-value
-                 markers.df %>% dplyr::filter(p_val_adj <= 0.05) %>%
-                                
-                  # Optional: Combine levels 
-                    # Combine ages and areas into meta-areas (regions) & meta-ages (stages)
-                    mutate(individual = as_factor(individual),
-                         
-                         region = fct_collapse(area, 
-                                                   msp = c("motor", "somatosensory", "parietal")
-                                                   ),
-                                  
-                         stage = fct_collapse(individual,
-                                                early = c("gw14", "gw16", "gw17"),
-                                                mid = c("gw18_2", "gw18", "gw19_2", "gw19", "gw20_31and34", "gw20"),
-                                                late = c("gw22both", "gw25")
-                                               )) %>%
-    
-                      # Merge columns for easier manipulation
-                      unite("area.individual", area, individual, sep = "_", remove = FALSE) %>%
-                      unite("region.stage", region, stage, sep = "_", remove = FALSE) %>%
-                      unite("group", celltype, region.stage, sep = "_", remove = FALSE) %>%
-
-                      select(gene, group, celltype, region, stage, region.stage, area, individual, area.individual, everything() )
-}
-
-
-```
-
-
-```{r prepareMarkers}
-df.markers <- df.markers %>% prepareMarkers()
-# This still has duplicate 
-
-# df.markers has duplicate genes which may have appeared for a given group several times.
-df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, celltype) %>% plot_bar
-
-df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, region) %>% plot_bar
-
-df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, individual) %>% plot_bar
-
-df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, stage) %>% plot_bar
-
-df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, area) %>% plot_bar
-
-df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, region.stage) %>% plot_bar
-
-df.markers %>% select(-file, -color, -color.rg) %>% distinct(gene, group) %>% plot_bar
-
-
-# group : celltype:region:stage (egion:stage by cell type)
-
-# getDistinct 
-# [] Turn into a function
-df.markers.distinct <- df.markers %>% 
-                    # dplyr::filter(celltype == "neuron" | celltype == "rg") %>%
-  
-                      # Collapse genes that appear > 1x in a group (eg genes in neuron:early:msp)
-                      distinct(gene, group, .keep_all = TRUE) %>% as.tibble()
-                                             #  .keep.all: If TRUE, keep all variables in .data
-```
-
-
-```{r buildSankey_df.markers.distinct}
-
-x <- buildSankey(markers = df.markers.distinct)
-
-unique(na.exclude(markers$celltype)
-      
-       
-markers.split <- markers.plot %>% split(.$celltype) 
-
-sankey.plots.all <- lapply(markers.split[c("rg", "neuron", "ipc")], function(x) {
-  
-  # message(x)
-  markers.plot.x <- x %>% filter(p_val_adj <= 0.05) %>%
-                        distinct(gene, meta.area.age, .keep_all = TRUE)
-
-stages <-  list(
-  all = buildSankey(markers = markers.plot.x, stage = NULL, dir = "../out/all_areas"),
-  early = buildSankey(markers = markers.plot.x, stage = "early", dir = "../out/all_areas"),
-  mid = buildSankey(markers = markers.plot.x, stage = "mid", dir = "../out/all_areas"),
-  late = buildSankey(markers = markers.plot.x, stage = "late", dir = "../out/all_areas")
-  )
-  return(stages)
-}
-  )
-
-write_rds(sankey.plots.all, "../sankey/out/sankey_plots.rds")
-
-df.markers.distinct %>% skim
-```
-
-
-
-
-
-
-
-
 
 
 # ..........................................
@@ -1083,8 +1026,6 @@ return(tibble::lst(df, df.meta, pairs.matrix, pairs.matrix.long, pairs.matrix.no
 
 }
 ```
-
-
 
 ```{r}
 result <- sankey.plots.all %>% map_depth(.f = buildSharedGeneMatrix, .depth = 2)

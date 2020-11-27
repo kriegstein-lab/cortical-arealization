@@ -33,7 +33,6 @@ Read-in cell-type/areal marker genes
 - Compare genes across individuals?
 How consistent is the areal signature across age for a given cell type?
 ```{r}
-
 # dir <- "~/Dropbox/2nd Trimester Areas Paper/Area Specific Genes/Neuron_byarea_combined.txt"
 dir <- "../tbls_markers_by_celltype_and_area/"
 files <- fs::dir_ls(dir, regexp = "txt")
@@ -550,6 +549,7 @@ markers.ct$neuron %>% str
 
 
 ## Combined: all individuals
+
 
 ### Neurons
 ```{r}
