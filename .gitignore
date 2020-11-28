@@ -18,3 +18,8 @@ second-trimester/featurePlots/out/UMAP_wholebrain_f_celltype_col_region.pdf
 second-trimester/featurePlots/out/wholebrain_UMAP_byCellType_facet.pdf
 second-trimester/abhaduri_homefiles_ls.txt
 my_scripts/tuber.Rmd
+*.css
+*.js
+*.js.map
+*.html
+*jquery*
