@@ -1,0 +1,456 @@
+---
+title: "FindMarkers v2"
+date: 2020-11-23
+output: 
+  bookdown::html_document2:
+    fig_caption: yes
+  bookdown::pdf_document2:
+    fig_caption: yes
+---
+
+```{r 20201128-1357}
+save.image(file = "findMarkers_MAST_worskpaceImage_2020-11-28.RData")
+```
+
+```{r}
+p_load(Seurat)
+p_load(tidyverse)
+p_load(bookdown)
+```
+
+```{r}
+repo_dir <- '~/cse-phd/second-trimester/'
+project_dir <- file.path(repo_dir, 'neocortex/markers_area_celltype/')
+data.dir <- file.path(repo_dir, '/neocortex/ncx_data/')
+
+ncx_full <- read_rds(file.path(data.dir, 'exn_lineage/neocortex_exn_seuratobj.rds'))
+ncx_split <- read_rds(file.path(data.dir, 'neocortex_split.rds'))
+```
+
+```{r imports}
+source(file = file.path(project_dir, 'gene_function/transcription_factors/R/makeDotPlots.R'))
+source('~/cse-phd/second-trimester/neocortex/R/expandMetadata.R')
+
+source_rmd(file.path(repo_dir, '/R/geneScore.Rmd'))
+source_rmd(file.path(project_dir, 'gene_function/transcription_factors/R/getGO_and_TF_annotations.Rmd'))
+```
+
+Currently `idents` are cell types
+
+```{r}
+ncx_full %>% Idents()
+```
+
+```{r}
+ncx_full_df <- ncx_full@meta.data %>% dplyr::count(individual, cell_type, area) %>% 
+  filter(cell_type %in% c('rg', 'ipc', 'neuron')) %>% as_tibble
+
+# ncx_full_df$cells <- ncx_full_df %>% pmap(~ WhichCells(object = ncx_full, 
+#                                                       expression = (individual == ..1 & 
+#                                                                    cell_type == ..2 &
+#                                                                    area == ..3))
+#                                       )
+
+all <- ncx_full_df %>% group_by(individual, cell_type) %>% 
+        summarise(all = paste(cells, sep = ''))
+          pmap(~ setdiff(..5, ))
+```
+
+```{r}
+Idents(ncx_split$gw14) <- ncx_split$gw14@meta.data$area
+ncx_split$gw14@meta.data$area %<>% as.character()
+Idents(ncx_split$gw14) <- ncx_split$gw14@meta.data$cell_type %>% as.character
+
+ncx_split$gw14@active.ident
+ncx_split$gw14@meta.data %>% glimpse
+```
+
+# Get markers by cell type.
+
+```{r 20201127-1552}
+markers_all <- ncx_split %>%
+  imap(~ FindAllMarkersByCellType(seurat_object = .x, individual = .y))
+
+# Stuff I had to do to get the cell type and individual associated with each gene (row) and consolidate.
+# This should all be done within the FindAllMarkersByCellType function.
+
+collapseMarkers <- function(markers_df) {
+  
+  # Get list of cell types for each individual (run FindMarkersByCellType without running the test.)
+  cell_types_lst <- test %>% enframe(value = 'cell_types')
+  markers_df <- markers_df %>% enframe(value = 'markers') %>% inner_join(cell_types_lst) 
+  message('Joined cell types\n')
+  # message(markers_df)
+  # Set cell type list names.
+  markers_df %<>% mutate(markers = pmap(markers_df, 
+                                        .f = ~ set_names(..2, value = ..3)))
+
+  # Add cell_type column to each marker table.
+  markers_df$markers %<>% map(.f = ~ .x %>% imap(~ .x %>% mutate(cell_type = .y)) %>%
+                                              reduce(bind_rows))
+
+  # Add individual column and merge individual tables.
+  # Gets rid of original column markers_df$individual.
+  markers_df %<>% pmap(~ ..2 %>% mutate(individual = ..1))
+  
+  markers_df %<>%reduce(bind_rows)
+}
+  
+  # Get gene scores and clean up markers table.
+  markers_all %<>% collapseMarkers 
+  
+  markers_all_filter %<>% getGeneScore
+
+write_tsv(markers_all, "../out/area_markers_by_individual_and_celltype_MAST.txt")
+write_rds(markers_all, "../out/area_markers_by_individual_and_celltype_MAST.rds")
+```
+# . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+# Filter markers
+
+# Markers per individual / area / cell type
+```{r}
+markers_all <- markers_all_orig %>% filter(p_val_adj <= 0.5) %>% ungroup
+# 20,358 markers (repeated across cell types, areas, individuals)
+```
+
+```{r}
+markers_all %>% ggplot() + geom_bar(aes(x = individual, fill = individual)) + 
+  facet_grid(rows =  vars(cluster), cols = vars(cell_type))
+```
+
+# Plot p_value_adj / log_FC distribution
+
+```{r}
+p_load(plotly)
+
+p <- markers_all %>% 
+      ggplot(aes(label.1 = gene, label.2 = diff.pct, label.4 = p_val_adj, label.3 = gene.score)) + 
+        geom_jitter(aes(x = avg_logFC, y = -log10(p_val_adj + 0.00001), colour = individual),  
+                    alpha = 0.6,
+                    height = 0.1, width = 0.1) +
+  facet_grid(vars(cluster), vars(cell_type)) +
+  scale_colour_viridis_d(option = 'B')
+
+  ggplotly(p) %>% 
+    htmlwidgets::saveWidget(file = file.path(project_dir,
+                          'area_markers_by_individual_and_celltype_MAST_volcanoPlot.html'))
+  
+  getwd()
+# TODO  Color this plot by [[transcription factor]] (yes TF /no TF)
+```
+
+# Figure out which markers are TFs
+
+`From: getG0_and_TF_annotations.Rmd`
+
+```{r}
+# Get GO annotations for all genes in markers_all
+go_ids <- getGO(genes = markers_all$gene %>% unique) 
+
+# Get a sub-table of markers all with genes in TF db.
+tfs_and_cofactors <- getGenesWithTFannotation(go_df = go_ids)
+tfs <- tfs_and_cofactors$tf_go_df[[1]] %>% distinct(hgnc_symbol, .keep_all = TRUE) %>%
+  dplyr::select(gene = hgnc_symbol, family)
+# 277 TF genes
+
+tf_go <- left_join(go_ids, tfs_and_cofactors$tf_go_df[[1]]) %>% arrange(hgnc_symbol)
+
+markers_all %<>% left_join(tfs)
+
+markers_all %<>% mutate(is_tf = case_when(! is.na(family) ~ 'TF',
+                                                TRUE ~ 'non_TF'))
+```
+
+NO LONGER RELEVANT IF JOINING IS DONE CORRECTLY ABOVE.
+Which marker genes are TFs? Then keep only one entry for each gene in each `individual`, `cell_type`, `area` group. 
+(markers_all must be grouped by those 3 variables;
+There were more because there are many GO terms for each gene.)
+
+```{r}
+markers_tf <- markers_all %>% filter(! is.na(family))
+```
+
+Are there more TFs in radial glia? Count each gene only once per cell type (across all areas, ages)
+
+```{r}
+counts_ct <- markers_tf %>% group_by(cell_type) %>% distinct(gene, .keep_all = TRUE)
+
+ggplot(counts_ct) + geom_bar(aes(x = cell_type, fill = cell_type))
+
+```
+
+What proportion of marker genes for each cell type are TFs?
+
+Get number of markers per cell type.
+
+```{r}
+counts_ct_tf <- markers_tf %>% group_by(cell_type) %>% summarise(n_markers_tf = n_distinct(gene))
+counts_ct <- markers_all %>% group_by(cell_type) %>% summarise(n_markers = n_distinct(gene))
+
+counts_ct %<>% left_join(counts_ct_tf) %>% mutate(pct_tf = n_markers_tf / n_markers)
+```
+
+# Consolidate into stages and regions.
+
+[x] `expandMetadata()`
+
+```{r}
+markers_all %<>% rename(area = 'cluster') %>% 
+  expandMetadata %>% arrange(stage, cell_type, area)
+
+```
+
+```{r}
+p_load(viridis)
+p_load(hrbrthemes)
+p_load(patchwork)
+
+df <- markers_all %>% group_by(cell_type, stage) %>% distinct(gene, .keep_all = TRUE) 
+
+barplot_tf <- df %>%
+  ggplot(aes(x = cell_type, fill = is_tf)) +
+  facet_wrap(~ stage, scales = 'free', nrow = 1) +
+  scale_fill_viridis(discrete = T, end = 0.5) +
+    # ggtitle("Proportion of TFs across cell types / time points") +
+    theme_minimal() +
+    xlab("") + ylab("")
+  
+p1 <- barplot_tf + geom_bar()
+
+p2 <- barplot_tf + geom_bar(position = 'fill')
+
+p1 + p2 + patchwork::plot_layout(ncol = 1, guides = 'collect') + 
+  plot_annotation(title = 'Proportion of TFs across cell types / time points' )
+```
+
+# DotPlots: TF expression
+
+across areas and stages
+
+```{r}
+source(file.path(project_dir, 'gene_function/transcription_factors/R/makeDotPlots.R'))
+
+markers_plot <- markers_all %>% dplyr::filter(is_tf == 'TF') %>% 
+                  filter(cell_type == 'rg', area == 'pfc') %>% split(.$stage) %>%
+                    map(~.x %>% pull(gene) %>% unique %>% sort)
+
+dotplots <- data.frame(cell_type = '', area = '', dotplot = '')
+
+seurat_object <- ncx_full %>% subset(subset = (cell_type == 'rg' & stage == 'early'))
+
+dotplot <- makeDotPlot(seurat_object = seurat_object, cell_type = 'rg', area = 'pfc', 
+                       genes_list = markers_plot)
+
+dotplot$early
+ncx_full@meta.data %<>% set_rownames(value = .$cell_name)
+Idents(ncx_full) <- 'cell_type'
+# TODO save this onject
+
+ncx_full@active.ident
+
+ncx_full@meta.data %>% filter(individual == 'gw16') %>% count(cell_type, area)
+ncx_full@meta.data$area
+
+# TODO Next: 2020-11-28 THIS NEEDS TO BE SCALED BY EACH INDIVIDUAL.
+```
+
+
+# Compare `markers_all` with Aparna's
+```{r 20201127-2304}
+markers_all_orig <- read_rds('../out/area_markers_by_individual_and_celltype_MAST.rds')
+
+markers_all_orig %<>% collapseMarkers 
+
+markers_all_orig %<>% getGeneScore
+
+write_tsv(markers_all_orig, "../out/area_markers_by_individual_and_celltype_MAST_20201127-2304.txt")
+```
+
+# Gene marker metric distributions
+Plots
+Scatterplot showing logFC vs pct_diff, colored by gene score.
+```{r 20201127-1858}
+# Attempts at binning the data (most values are between ~ 0 and 2)
+  markers_all_orig %<>% 
+    mutate(gene.score.quant = cut(gene.score, c(-5, 0, seq(0.1, 3, by = 0.1), 
+                                                5, 6, 7, 8, 9, 10, 20, 30, 40, 50, Inf)))
+                                                      
+  round <- markers_all_orig$gene.score %>% round(2)
+  cut_into_parts <- 500
+  bins <- (length(round) / cut_into_parts) %>% round(0)
+  markers_all_orig %<>% mutate(gene.score.quant = cut(gene.score, breaks = 1000, include_lowest = TRUE))
+markers_all_orig %<>% mutate(gene.score.chop = chop_evenly(round(gene.score, 2), intervals = 100))
+# -----------------------------------------------------
+  
+markers_all_orig %>% arrange(gene.score) %>%
+  ggplot() + geom_point(aes(x = diff.pct, y = avg_logFC, 
+                            colour = gene.score.quant), 
+                            alpha = 0.5, size = 0.5) + 
+  scale_colour_viridis_d(end = 0.97) +
+    theme_minimal() + 
+    facet_wrap(~cell_type)
+
+markers_all_orig %>% arrange(gene.score) %>%
+  ggplot() + geom_point(aes(x = diff.pct, y = avg_logFC, 
+                            colour = as.numeric(quantileCut(gene.score, 1000))), 
+                            alpha = 0.5, size = 0.5) + 
+  scale_colour_viridis(end = 0.98) +
+  theme_minimal() + facet_wrap(~cell_type)
+
+# -----------------------------------------------------
+# 20201127-2153
+
+markers_all_orig %>% arrange(gene.score) %>%
+  ggplot() + geom_point(aes(x = diff.pct, 
+                            y = scales::squish(avg_logFC, c(0, 2)), 
+                            colour = scales::squish(gene.score, 
+                                                    range = c(0, 5))), 
+                            alpha = 0.5, size = 1) + 
+  scale_colour_gradientn(name = 'gene_score',
+                         guide = 'colorbar',
+                         colors = viridis(1000, end = 0.98),
+                       # limits = c(0, 5),
+                       # oob = scales::squish,
+                       # breaks = c(seq(0,3, by = 0.5), seq(4,10, by = 1)),
+                       values = c(0, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.75, 1)) +
+  ylab('average log fold change') +
+  theme_minimal() + facet_wrap(~cell_type)
+# -----------------------------------------------------
+# 20201127-2156 
+
+markers_all_orig %>% arrange(gene.score) %>%
+  ggplot() + geom_point(aes(y = scales::squish(avg_logFC, 
+                                                    range = c(0, 2)), 
+                            x = p_val_adj, 
+                            colour = scales::squish(gene.score, 
+                                                    range = c(0, 5))), 
+                            alpha = 0.5, size = 1) + 
+  scale_colour_gradientn(name = 'gene_score',
+                         guide = 'colorbar',
+                         colors = viridis(1000, end = 0.98),
+                       # limits = c(0, 5),
+                       # oob = scales::squish,
+                       # breaks = c(seq(0,3, by = 0.5), seq(4,10, by = 1)),
+                       values = c(0, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.75, 1)) +
+  xlab('adjusted p-val') +
+  ylab('avg logfc') +
+  theme_minimal() + facet_wrap(~cell_type)
+
+# --------------------
+
+markers_all_orig %>% filter(p_val_adj <= 0.5) %>% arrange(p_val_adj) %>%
+  ggplot() + geom_point(aes(y = scales::squish(avg_logFC, 
+                                                    range = c(0, 2)), 
+                            x = scales::squish(enrichment.ratio, c(0, 6)),
+                            colour = p_val_adj), 
+                            alpha = 0.75, size = 1) + 
+ scale_colour_gradientn(colors = c('grey50', viridis(n = 5, end = 0.98)), 
+                         values = c(0, 0.2, 0.5, 0.8, 1)) +
+                         # limits = c(0, 0.5) ) +
+                         #  oob = scales::squish) +
+  xlab('enrichment.ratio') +
+  ylab('avg logfc') +
+  theme_minimal() + facet_wrap(~cell_type)
+
+# --------------------
+
+  markers_all_orig %>% arrange(gene.score) %>%
+    ggplot() + geom_point(aes(y = scales::squish(enrichment.ratio, c(0,2)),  
+                              x = p_val_adj, 
+                              colour = scales::squish(avg_logFC, 
+                                                      range = c(0, 2))), 
+                              alpha = 0.75, size = 1) + 
+    scale_colour_gradientn(name = 'avg_logFC',
+                           guide = 'colorbar',
+                           colors = viridis(1000, end = 0.98),
+                         limits = c(0, 2),
+                         oob = scales::squish) +
+                         # breaks = c(seq(0,3, by = 0.5), seq(4,10, by = 1)),
+                         # values = c(0, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.75, 1)) +
+    xlab('adjusted p-val') +
+    ylab('enrichment ratio') +
+    theme_minimal() + facet_wrap(~cell_type)
+# -----------------------------------------------------
+
+
+markers_all_orig$gene.score %>% length
+markers_all_orig$gene.score %>% quantile(.99)
+markers_all_orig$gene.score %>% summary
+  
+  ggplot(markers_all_orig) + geom_histogram(aes(x = gene.score), bins = 100) + scale_x_continuous(limits = c(0, 10))
+  
+  scale_color_continuous(limits = c(0,5))
+  
+  scale_color_continuous(type = 'viridis',
+                         limits = c(0,5))
+  
+  scale_color_gradient
+  
+  continuous_scale
+  
+  markers_all_orig$enrichment.ratio %>% summary
+```
+  
+## p-value across cell types
+```{r 20201127-2143}
+  markers_all_orig %>% filter(p_val_adj <= 0.5) %>% arrange(p_val_adj) %>%
+  ggplot() + geom_point(aes(x = diff.pct, y = scales::squish(avg_logFC, c(0, 2)),
+                            colour = p_val_adj),
+                            # colour = as.numeric(cut(p_val_adj, c(0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.05, 0.1, 0.2, 0.5, 0.75)))), 
+                            alpha = 0.75, size = 1) + 
+  scale_colour_gradientn(colors = c('grey50', viridis(n = 7, end = 0.98)), 
+                         values = c(0, 0.2, 0.3, 0.4, 0.5, 0.75, 1)) +
+  theme_minimal() + facet_wrap(~cell_type)
+```
+
+
+
+
+```{r}
+FindAllMarkersByCellType <- function(seurat_object, individual) {
+                                     # single individual
+  
+    object_split_by_celltype <- SplitObject(seurat_object, split.by = 'cell_type') %>% 
+                          enframe(name = 'cell_type',
+                                  value = 'seurat_object') %>%
+                            filter(cell_type %in% c('rg', 'neuron', 'ipc'))
+      
+        # markers_by_celltype <- object_split_by_celltype %>% 
+          
+              # pmap(.f = function(cell_type, seurat_object) {
+      
+                    # Idents(seurat_object) <- seurat_object@meta.data$area
+                     
+                    # markers <- FindAllMarkers(max.cells.per.ident = 2000,
+                                       #       slot = 'data',
+                                       #       object = seurat_object,
+                                       #              # subset(ncx_split$gw14, cell_type == 'rg'),
+                                       #              # subset(ncx_full, individual == 'gw14'),
+                                       #    # group.by = 'area',
+                                       #    # ident.1 = 'pfc',
+                                       #    test.use = 'MAST', 
+                                       #    only.pos = TRUE,
+                                       #    # logfc.threshold = 0.5,
+                                       #    # pct.min = 0.3,
+                                       #    # min.diff.pct = 0.2,
+                                       #    verbose = TRUE)
+                    
+                   # markers$cell_type <- cell_type
+                   #  markers$individual <- individual
+                  #  })
+
+    sms(individual)
+   return(object_split_by_celltype$cell_type)
+}
+```
+
+gw16 \<- ncx_full %\>% subset(subset = (cell_type == 'neuron' & individual == 'gw16')) rg \<- [ncx_full\@meta.data](mailto:ncx_full@meta.data){.email} %\>% filter(cell_type == 'rg' & individual == 'gw16')
+
+all\$all %\>% length
+
+rg \<- rg %\>% split(rg$individual) %>% imap(.f = ~ split(.x, .x$area)) %\>% enframe
+
+rg\$value[1]
+
+WhichCells(ncx_full, expression = cell_type == 'rg')

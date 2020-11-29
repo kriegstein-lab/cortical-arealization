@@ -1,0 +1,129 @@
+---
+title: "TF Expression Dot Plots"
+date: 2020-11-17
+output: html_notebook
+---
+
+# Marker TF Dotplots: expression across cells from other areas
+
+```{r}
+data.dir <- "~/cse-phd/second-trimester/neocortex/ncx_data/"
+
+load(file = "./2020-11-15_transcription_factor_composition_workspace.RData")
+
+ncx_full <- read_rds(paste0(data.dir, 'exn_lineage/neocortex_exn_seuratobj.rds'))
+sms("Loaded image")
+```
+
+# Make dot plots . . . . . . . . . . . . . . . . .
+
+## Get lists of genes to plot by each celltype-area
+
+```{r}
+ncx_full@meta.data %<>% arrange(stage, region) %>%
+    mutate(stage_region = as_factor(stage_region)) %>%
+    arrange(stage, area) %>%
+    mutate(stage_area = as_factor(stage_area)) 
+```
+
+## Get lists using get_TF_list
+```{r}
+celltype_areas <- paste(tfs_gos_byStage$celltype, tfs_gos_byStage$region, sep = "_") %>% 
+  unique %>% purrr::set_names()
+# Get list of TFs by celltype-region; split by stage.
+tf_lists <- map(celltype_areas, get_TF_list) %>% 
+              enframe(name = "celltype_area", value = "tfs_stage") %>%
+                separate(celltype_area, into = c("celltype", "area"), remove= FALSE)
+              # to return a dataframe instead of list
+```
+
+# Run makeDotPlot on each row of tf_lists
+```{r}
+Idents(ncx_full) <- 'cell_type'
+
+tf_lists$dotplots <- tf_lists %>% dplyr::select(-1) %>% 
+    pmap(~ makeDotPlot(celltype = ..1, area = ..2, genes_list = ..3))
+
+# genes_list
+# A list of TFs for a given cell type-area combination; list elements are stages.
+# i.e. rg_pfc -> rg_pfc$early, rg_pfc$mid, rg_pfc$late
+```
+
+# Functions
+
+```{r}
+get_TF_list <- function(celltype_area) {
+  
+    my_tfs <- tfs_gos_byStage %>% filter(group %>% str_detect(celltype_area)) %>% 
+              # select(group, tf_go_df) %>% unnest %>% distinct(group, hgnc_symbol) %>%   
+                # pull(hgnc_symbol) %>% unique
+              dplyr::select(group, tf_genes)
+  
+   genes_list <- purrr::pmap(my_tfs, .f = ~ unlist(..2 %>% str_split(";"))) %>% 
+    set_names(value = my_tfs$group)
+  
+  # genes <- reduce(genes_list, c) %>% unique
+  return(genes_list)
+}
+```
+## makeDotPlots.R
+```{r}
+source('makeDotPlots.R')
+
+# https://stackoverflow.com/questions/13649473/add-a-common-legend-for-combined-ggplots
+# https://stackoverflow.com/questions/14604435/turning-off-some-legends-in-a-ggplot
+dotplot_panel <- wrap_plots(dotplots_celltype_area_byStage, ncol = 3) + 
+              plot_layout(guides = "collect",
+                          widths = c(6, 39, 7)) +
+                plot_annotation(title = paste("Transcription factors enriched in", area, celltype,
+                                              sep = " "))
+
+dotplot_panel %<>% modify_at(.at = c(2,3), 
+                          .f = ~ .x + theme(axis.text.y = element_blank(),
+                                           axis.ticks.y = element_blank(),
+                                           axis.title.y = element_blank(),
+                                           ) +
+                                     guides(size = FALSE, guide_colorbar(title.position = 'top')))
+
+ggsave(plot = dotplot_panel, 
+       filename = paste0("../out/plots/dotplot_", celltype, "_", area, ".pdf"), 
+       width = 12.5, height = 6, units = 'in')
+```
+
+
+
+```{r}
+areas.rgx <- ncx_full@meta.data$area %>% unique %>% paste(collapse = "|")
+
+heatmap.colors <- 
+  c("Vermilion" = "#DF4619",
+    "Flame"="#E45A17",
+    "Marigold"="#F4AD39",
+    "Naples Yellow"="#FAD85F",
+    "Key Lime"="#F0FD8C",
+    "Light Green"="#ADF196",
+    "Maximum Blue Green"="#25BFC6",
+    "Pacific Blue"="#21AFCB",
+    "Blue NCS"="#1A90C1")
+```
+
+
+
+
+
+```{r}
+# Cannot install ggarrange
+p_load(ggpubr)
+ggarrange(dotplots_rg_pfc_byStage)
+
+genes_list %>% map(length)
+
+
+ncx.exn@meta.data$area
+# TODO @issue Split.by does not respect factor order
+
+ncx_full@meta.data %>% filter(cell_type == 'rg') %>%
+  df_barPlot(cell_type) + facet_grid(rows = vars(stage), cols = vars(region))
+```
+
+

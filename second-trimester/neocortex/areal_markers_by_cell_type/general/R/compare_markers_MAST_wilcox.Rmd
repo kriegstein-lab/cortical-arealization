@@ -1,0 +1,150 @@
+---
+title: 'Compare markers: MAST vs wilcox'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+p_load(VennDetail)
+
+```
+
+```{r}
+repo_dir <- '~/cse-phd/second-trimester/'
+project_dir <- file.path(repo_dir, 'neocortex/markers_area_celltype/')
+data.dir <- file.path(repo_dir, '/neocortex/ncx_data/')
+```
+
+```{r}
+markers_ab <- read_tsv(comment = '#',
+                      '../../tbls_in/markers_by_celltype_and_indiv/df_markers_by_celltype_indiv_all.txt')
+# p-value goes from 0-1 (not filtered.)
+```
+
+Expand metadata and filter cells to keep excitatory lineage only.
+```{r}
+source('../../../R_general/expandMetadata.R')
+cell_types <- c('rg', 'ipc', 'neuron')
+
+markers_ab %<>% rename(cell_type = 'celltype') %>% 
+                  expandMetadata() %>%
+                    dplyr::filter(cell_type %in% cell_types)
+
+write_tsv(markers_ab, '../../tbls_in/markers_by_celltype_and_indiv/markers_by_celltype_indiv_all_exn.txt')
+```
+
+```{r}
+
+markers_ab %<>% dplyr::filter(p_val_adj <= 0.1)
+markers_MAST <- markers_all %>% dplyr::filter(p_val_adj <= 0.1)
+
+unique_genes_ab <- markers_ab %>% getUniqueGenesByGroup()
+unique_genes_MAST <- markers_MAST %>% getUniqueGenesByGroup()
+
+markers_by_group_p0.1 <- left_join(unique_genes_ab, unique_genes_MAST, 
+                              by = c('cell_type', 'area', 'stage'), 
+                              suffix = c('_ab', '_MAST'))
+```
+
+```{r}
+# Apply to every group (row of `markers_by_group`)
+
+markers_by_group <- markers_by_group_p0.1
+
+markers_by_group %<>% unite('group', cell_type, area, stage, remove = FALSE)
+
+x <- markers_by_group %>% 
+  select(unique_genes_ab, unique_genes_MAST)
+
+markers_by_group$venn <- purrr::pmap(x %>% unname, 
+                                     function(wilcox_genes = ..1, MAST_genes =..2){
+                                        x = lst(wilcox_genes, MAST_genes)
+                                        res <- venndetail(x)
+                                        # plot <- venn.diagram(res@input, filename = NULL)
+                                        return(res)
+                                      })
+
+markers_by_group$diagrams <- markers_by_group %>% select(group, venn) %>%
+                                                    unname %>%
+                                pmap(function(group = ..1, venn_result = ..2) {
+                                              p <- venn.diagram(venn_result@input, filename = NULL)
+                                              p <- grobTree(p, name = group)
+                                })
+
+width_p = 20
+height_p = width_p * 1.33
+
+pdf('MAST_vs_wilcox_vennp_val_adj_0.1.pdf', height = height_p, width = width_p)
+p <- (markers_by_group$diagrams %>% 
+        plot_grid(plotlist = ., labels = markers_by_group$group, ncol = 6))
+print(p)
+dev.off()
+
+                    # col = col,
+                    # fill = mycol[seq_len(n)],
+                    # alpha = alpha,
+                    # cex = cex,
+                    # cat.col = mycol[seq_len(n)],
+                    # cat.cex = cat.cex,
+                    # cat.fontface = cat.fontface,
+                    #cat.pos=cat.pos,
+                    #cat.dist=cat.dist,
+                    # margin = margin)
+p_load(cowplot)
+plot_grid(grobTree(p), labels = "AUTO")
+```
+ 
+ 
+```{r}
+png(filename = 'test2.pdf')
+grid.draw(x)
+dev.off()
+
+dev.list()
+l <- linesGrob()
+grid:::drawGrob(l)
+p_load(grid)
+
+newpage()
+
+my_circle <- circleGrob(x = 0.5, y = 0.5, r = 0.5,
+                        gp = gpar(col = "gray", lty = 3))
+grid.draw(my_circle)
+
+res@wide
+
+
+p <- venn.diagram(res@input, filename = NULL)
+
+                    # col = col,
+                    # fill = mycol[seq_len(n)],
+                    # alpha = alpha,
+                    # cex = cex,
+                    # cat.col = mycol[seq_len(n)],
+                    # cat.cex = cat.cex,
+                    # cat.fontface = cat.fontface,
+                    #cat.pos=cat.pos,
+                    #cat.dist=cat.dist,
+                    # margin = margin)
+p_load(cowplot)
+plot_grid(grobTree(p), labels = "AUTO")
+```
+
+
+
+# Functions ----------------------------------------------------------------------------------------
+```{r 20201128-1613}
+getUniqueGenesByGroup <- function(markers_df) {
+
+    markers_df %>% group_by(cell_type, area, stage) %>% 
+                      summarise(unique_genes_n = n_distinct(gene),
+                                unique_genes = list(unique(as.character(gene)))) %>%
+                                # https://stackoverflow.com/a/15934100/4463919
+                                # Collapse / concatenate / aggregate a column to a single 
+                                # comma separated string within each group
+                          ungroup()
+}
+```
+
+

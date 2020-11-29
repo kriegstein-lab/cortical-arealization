@@ -1,3 +1,15 @@
+# Gene marker tables:
+`df_markers_by_area_celltype_indiv.txt` 
+ [2020-11-19] Combined and saved from files imported from:
+ `../aparna/homefiles/Fall2019_finalclustering_secondtrimester/_neocortex_*_byarea_clustermarkers.txt`
+ Result of:
+  `FindMarkers` for each area vs everything else.
+    - with cells of the same cell type
+    - within each individual.
+  See `sankey_plots.Rmd`
+
+
+
 # Seurat object subsets:
 
 ```{r}
