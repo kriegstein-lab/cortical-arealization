@@ -66,6 +66,7 @@ get_TF_list <- function(celltype_area) {
   return(genes_list)
 }
 ```
+
 ## makeDotPlots.R
 ```{r}
 source('makeDotPlots.R')
@@ -106,9 +107,6 @@ heatmap.colors <-
     "Pacific Blue"="#21AFCB",
     "Blue NCS"="#1A90C1")
 ```
-
-
-
 
 
 ```{r}

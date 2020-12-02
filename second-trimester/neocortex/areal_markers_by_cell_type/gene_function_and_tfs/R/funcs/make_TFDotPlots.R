@@ -1,7 +1,7 @@
 # 2020-11-25
 # function: makeDotPlot
 
-makeDotPlot <- function(seurat_object, cell_type, area, genes_list){
+makeDotPlot <- function(seurat_object, cell_type, area, genes_list, scale = FALSE){
                         # seurat_object = ncx_full
   dotplots_celltype_area_byStage <- 
     
@@ -11,17 +11,18 @@ makeDotPlot <- function(seurat_object, cell_type, area, genes_list){
                  features = .x,
                  group.by = 'individual',
                  split.by = 'area',
-                 scale = TRUE,
-                 cols =  "RdYlBu",
+                 scale = scale,
+                 # cols =  "RdYlBu",
+                 cols = c('red', 'blue', 'green', 'purple', 'orange', 'yellow', 'pink'),
                  dot.min = 0.01) + 
          
-        scale_colour_gradientn(colours = rev(heatmap.colors),
+        # scale_colour_gradientn(colours = rev(heatmap.colors),
                        # TODO Maybe keep high yellow, low blue gradient.
                          # values = c(0, 0.3, 1),
                          # breaks = c(0, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9),
                          # limits = c(0.01, 0.9),
                          # na.value = "white"
-        ) +
+        # ) +
         guides(size = guide_legend(direction = "vertical")) +
         
         # scale_y_discrete(labels = function(x) 

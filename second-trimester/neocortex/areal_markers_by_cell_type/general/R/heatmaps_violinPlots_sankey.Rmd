@@ -921,10 +921,11 @@ avg.exp <- lapply(markers.ct, function(markers) {
                           scale = FALSE, 
                           dot.scale = 1)
 
-
   avg.exp <- dp$data %>% rename(gene = "features.plot", 
                                 group = "id") %>% 
-              left_join(x %>% dplyr::select(-X)) %>% rename(area = "cluster") %>% arrange(area, individual, gene)
+              left_join(x %>% dplyr::select(-X)) %>% 
+                rename(area = "cluster") %>% 
+                   arrange(area, individual, gene)
   
 
   gene.counts.3 <- avg.exp %>% distinct(gene, area, individual) %>% 
@@ -1051,7 +1052,8 @@ h1
 
 h1 %>% plotly::ggplotly() %>% htmlwidgets::saveWidget("heatmap.html")
 
-ggsave(plot = h1, "../heatmaps_neocortex_DEgenes_celltype_x_area/heatmap_geneExp_markers_PFC_byIndividual_a.pdf", device = "pdf", 
+ggsave(plot = h1, "../heatmaps_neocortex_DEgenes_celltype_x_area/heatmap_geneExp_markers_PFC_byIndividual_a.pdf", 
+       device = "pdf", 
        height = 10, width = 25)
 
 genes.order$PFC.V1 <- dplyr::combine(genes.order) %>% unique

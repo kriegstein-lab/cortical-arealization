@@ -26,8 +26,6 @@ go_attributes <- searchAttributes(mart = ensembl, pattern = "GO ") %>% pull(name
 
 From <http://bioinfo.life.hust.edu.cn/AnimalTFDB/#!/>
 
-Get GO annotations
-
 ```{r read-data}
 tfs_db <- read_table2(file = 'http://bioinfo.life.hust.edu.cn/static/AnimalTFDB3/download/Homo_sapiens_TF') %>% 
             set_names(tolower(names(.))) %>% 
@@ -73,4 +71,48 @@ getGO_map <- function(groups_tbl, celltype) {
                        ) %>%
                     reduce(bind_rows)
 }
+```
+
+## Intersect with transcription factor and co-factor DBs.
+
+```{r}
+getGenesWithTFannotation <- function(go_df) {
+  
+  group_markers_n <- go_df$hgnc_symbol %>% unique %>% length
+
+  tf_go_df <- list(left_join(go_df, tfs_db) %>% 
+                      filter(! is.na(family))
+                  )
+  
+  tf_cofactor_go_df <- list(left_join(go_df, tf_cofactors_db) %>% 
+                               filter(! is.na(family))
+                )
+  
+  tfs <- tibble(# group = "rg_pfc_all", 
+                group_markers_n = group_markers_n,
+                
+                tf_genes =  tf_go_df[[1]]$hgnc_symbol %>% unique %>% paste(collapse= ";"),
+                tf_genes_n = tf_go_df[[1]]$hgnc_symbol %>% unique %>% length,
+                tf_genes_frac = (tf_genes_n / group_markers_n) %>% round(2),
+                tf_go_df = tf_go_df
+          )
+  
+  tf_cofactors <- tibble(# group = "rg_pfc_all", 
+                         
+                         tf_cofactor_genes = tf_cofactor_go_df[[1]]$hgnc_symbol %>% 
+                                                  unique %>% paste(collapse= ";"),
+                         
+                         tf_cofactor_genes_n = tf_cofactor_go_df[[1]]$hgnc_symbol %>% 
+                                                  unique %>% length,
+                         tf_cofactor_genes_frac = (tf_cofactor_genes_n / group_markers_n) %>% round(2),
+                         
+                         tf_cofactor_go_df = tf_cofactor_go_df
+                       
+                  )
+  
+  tfs_and_cofactors <- bind_cols(tfs, tf_cofactors)
+  
+}
+
+ %>% left_join(expression_go) %>% add_column(all_markers_go_df = list(goids_x))
 ```

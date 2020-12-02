@@ -23,7 +23,7 @@ knitr::opts_chunk$set(echo = TRUE)
 [2020-11-19] Combined and saved in:
 `df_markers_by_area_celltype_indiv.txt`
 
-```{r read-gene-markers}
+```{r read-and combine-markers}
 dir <- "../../in/tbls_markers_by_celltype_and_area/"
 files <- fs::dir_ls(dir, regexp = "txt")
 cell.type <- lst("rg", "neuron", "ipc")

@@ -31,7 +31,7 @@ BiocManager::install("enrichplot")
 
 ```{r}
 # save.image(file = "R/2020-11-15_transcription_factor_composition_workspace.RData")
-load(file = "R/2020-11-15_transcription_factor_composition_workspace.RData")
+load(file = "2020-11-15_transcription_factor_composition_workspace.RData")
 sms("Loaded image")
 ```
 
@@ -44,69 +44,10 @@ pairs <-
           )
 ```
 
-# Select biomaRt database and attributes to fetch {#select-biomart-database-and-attributes-to-fetch}
-
 ```{r}
-p_load(biomaRt)
-
-listMarts()
-
-ensembl <- useMart("ensembl")
-ensembl <- useDataset("hsapiens_gene_ensembl", mart = ensembl)
-
-listDatasets(ensembl)
-listAttributes(ensembl) %>% filter(! name %>% str_detect("homolog"))
-
-searchAttributes(mart = ensembl, pattern = "GO")
-
-go_attributes <- searchAttributes(mart = ensembl, pattern = "GO ") %>% pull(name) %>% .[-4]
+source_rmd('getGO_and_TF_annotations.Rmd')
 ```
 
-# Read transcription factor databases
-
-```{r}
-tfs_db <- read_table2("animalDB/Homo_sapiens_TF.txt") %>% set_names(tolower(names(.)))
-tfs_db %<>% rename(hgnc_symbol = "symbol") %>% select(-id)
-# 1,665 TFs
-
-## Transcription cofactors
-tf_cofactors_db <- read_tsv("animalDB/Homo_sapiens_TF_cofactors.txt") %>% set_names(tolower(names(.)))
-tf_cofactors_db %<>% rename(hgnc_symbol = "symbol")
-# 1,025 TF cofactors
-```
-
-# Get GO annotations
-
-for all cell type-area marker genes
-
-```{r fxn:getGO}
-getGO <- function(genes = x) {
-  
-              getBM(attributes = c('hgnc_symbol', 'description', go_attributes), 
-                    filters = 'hgnc_symbol', 
-                    values = genes, 
-                    mart = ensembl) %>%
-    
-              filter(! namespace_1003 %>% str_detect("cellular_component") &
-                     ! name_1006 == '') %>% 
-                add_count(name_1006) %>% arrange(desc(n), name_1006) %>% 
-                  # mutate(name_1006 = as_factor(name_1006)) %>%
-                    dplyr::select(hgnc_symbol, name_1006, n, description, everything())
-}
-
-
-getGO_map <- function(groups_tbl, celltype) {
-    
-    groups_tbl %>% 
-    # dplyr::filter(item2 %>% str_detect(celltype)) %>% 
-                dplyr::select(item2, genes) %>% 
-                  pmap(~ tibble(group = ..1, 
-                                go_df = list(getGO(genes = ..2))
-                                )
-                       ) %>%
-                    reduce(bind_rows)
-}
-```
 
 ## Radial glia: PFC: unique marker genes
 
@@ -235,6 +176,9 @@ go_tfs_cofactors_df <- bind_cols(go_dfs, tfs_and_cofactors, go_df_expression)
 
 go_tfs_cofactors_df %>% select(- ends_with("_df")) %>%
 write_tsv("../transcription_factors/markers_by_area_go_tfs_cofactors_df.tsv")
+
+go_tfs_cofactors_df %>% write_rds('../out/markers_by_area_go_tfs_cofactors_df.rds')
+# Saved on [2020-11-29]
 ```
 
 # Plots . . . . . . . . . . . . . . . . . . . . . . . . . . . .
@@ -373,6 +317,7 @@ tfs_gos_byStage %<>%
 
 tfs_gos_byStage %>% select(- ends_with("_df")) %>%
 write_tsv("../out/markers_by_area_and_stage_go_tfs_cofactors_df.tsv")
+# TODO Save this rds
 
 pairs$by_area_stage %<>% rename(celltype_target = "cell_targetpe_target")
 

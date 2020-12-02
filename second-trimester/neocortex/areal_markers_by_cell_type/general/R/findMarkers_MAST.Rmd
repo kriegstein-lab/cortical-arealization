@@ -1,10 +1,8 @@
 ---
-title: "FindMarkers v2"
+title: "FindMarkers v2: Using MAST"
 date: 2020-11-23
 output: 
   bookdown::html_document2:
-    fig_caption: yes
-  bookdown::pdf_document2:
     fig_caption: yes
 ---
 
@@ -140,11 +138,10 @@ p <- markers_all %>%
 # TODO  Color this plot by [[transcription factor]] (yes TF /no TF)
 ```
 
-# Figure out which markers are TFs
-
-`From: getG0_and_TF_annotations.Rmd`
+# Which markers are TFs ?
 
 ```{r}
+source('../../gene_function_and_tfs/R/getGO_and_TF_annotations.Rmd')
 # Get GO annotations for all genes in markers_all
 go_ids <- getGO(genes = markers_all$gene %>% unique) 
 
@@ -224,39 +221,9 @@ p1 + p2 + patchwork::plot_layout(ncol = 1, guides = 'collect') +
   plot_annotation(title = 'Proportion of TFs across cell types / time points' )
 ```
 
-# DotPlots: TF expression
-
-across areas and stages
-
-```{r}
-source(file.path(project_dir, 'gene_function/transcription_factors/R/makeDotPlots.R'))
-
-markers_plot <- markers_all %>% dplyr::filter(is_tf == 'TF') %>% 
-                  filter(cell_type == 'rg', area == 'pfc') %>% split(.$stage) %>%
-                    map(~.x %>% pull(gene) %>% unique %>% sort)
-
-dotplots <- data.frame(cell_type = '', area = '', dotplot = '')
-
-seurat_object <- ncx_full %>% subset(subset = (cell_type == 'rg' & stage == 'early'))
-
-dotplot <- makeDotPlot(seurat_object = seurat_object, cell_type = 'rg', area = 'pfc', 
-                       genes_list = markers_plot)
-
-dotplot$early
-ncx_full@meta.data %<>% set_rownames(value = .$cell_name)
-Idents(ncx_full) <- 'cell_type'
-# TODO save this onject
-
-ncx_full@active.ident
-
-ncx_full@meta.data %>% filter(individual == 'gw16') %>% count(cell_type, area)
-ncx_full@meta.data$area
-
-# TODO Next: 2020-11-28 THIS NEEDS TO BE SCALED BY EACH INDIVIDUAL.
-```
 
 
-# Compare `markers_all` with Aparna's
+# Read MAST object and condense into a single table with all the genes (no filtering.)
 ```{r 20201127-2304}
 markers_all_orig <- read_rds('../out/area_markers_by_individual_and_celltype_MAST.rds')
 

@@ -1,7 +1,7 @@
-```{r}
-DotPlot
+# Modified / annotated by CSE
+# 2020-12-01
 
-function (object, assay = NULL, features, cols = c("lightgrey", 
+DotPlot <- function (object, assay = NULL, features, cols = c("lightgrey", 
     "blue"), col.min = -2.5, col.max = 2.5, dot.min = 0, dot.scale = 6, 
     idents = NULL, group.by = NULL, split.by = NULL, cluster.idents = FALSE, 
     scale = TRUE, scale.by = "radius", scale.min = NA, scale.max = NA) 
@@ -25,21 +25,25 @@ function (object, assay = NULL, features, cols = c("lightgrey",
         features <- unlist(x = features)
         names(x = feature.groups) <- features
     }
-    cells <- unlist(x = CellsByIdentities(object = object, idents = idents))
+    cells <- unlist(CellsByIdentities(object = object, idents = idents))
+    
     data.features <- FetchData(object = object, vars = features, 
         cells = cells)
-    data.features$id <- if (is.null(x = group.by)) {
+    
+    data.features$id <- if (is.null(group.by)) {
         Idents(object = object)[cells, drop = TRUE]
-    }
+        }
     else {
         object[[group.by, drop = TRUE]][cells, drop = TRUE]
-    }
-    if (!is.factor(x = data.features$id)) {
-        data.features$id <- factor(x = data.features$id)
+        }
+    if (!is.factor(data.features$id)) {
+        data.features$id <- factor(data.features$id)
     }
     id.levels <- levels(x = data.features$id)
     data.features$id <- as.vector(x = data.features$id)
-    if (!is.null(x = split.by)) {
+    
+    if (!is.null(split.by)) {
+        
         splits <- object[[split.by, drop = TRUE]][cells, drop = TRUE]
         if (split.colors) {
             if (length(x = unique(x = splits)) > length(x = cols)) {
@@ -53,9 +57,11 @@ function (object, assay = NULL, features, cols = c("lightgrey",
         id.levels <- paste0(rep(x = id.levels, each = length(x = unique.splits)), 
             "_", rep(x = unique(x = splits), times = length(x = id.levels)))
     }
-    data.plot <- lapply(X = unique(x = data.features$id), FUN = function(ident) {
-        data.use <- data.features[data.features$id == ident, 
-            1:(ncol(x = data.features) - 1), drop = FALSE]
+    
+    data.plot <- lapply(X = unique(x = data.features$id), 
+                        FUN = function(ident) {
+        data.use <- data.features[data.features$id == ident, 1:(ncol(data.features) - 1), 
+                                  drop = FALSE]
         avg.exp <- apply(X = data.use, MARGIN = 2, FUN = function(x) {
             return(mean(x = expm1(x = x)))
         })
@@ -80,30 +86,39 @@ function (object, assay = NULL, features, cols = c("lightgrey",
     if (!is.null(x = id.levels)) {
         data.plot$id <- factor(x = data.plot$id, levels = id.levels)
     }
-    if (length(x = levels(x = data.plot$id)) == 1) {
+    if (length(levels(data.plot$id)) == 1) {
         scale <- FALSE
         warning("Only one identity present, the expression values will be not scaled", 
             call. = FALSE, immediate. = TRUE)
     }
-    avg.exp.scaled <- sapply(X = unique(x = data.plot$features.plot), 
-        FUN = function(x) {
-            data.use <- data.plot[data.plot$features.plot == 
-                x, "avg.exp"]
+    
+# SCALING -------------------------------------------------------------------------------------
+    
+    avg.exp.scaled <- sapply(X = unique(data.plot$features.plot), 
+                            FUN = function(x) {
+                                
+                                    data.use <- data.plot[data.plot$features.plot == x, "avg.exp"]
+            
             if (scale) {
-                data.use <- scale(x = data.use)
-                data.use <- MinMax(data = data.use, min = col.min, 
-                  max = col.max)
+                # Scales across all the average expression values for *all* the groups.
+                # ie across all areas from all individuals, etc.
+                data.use <- scale(data.use)
+                data.use <- MinMax(data = data.use, 
+                                   min = col.min, 
+                                   max = col.max)
             }
             else {
                 data.use <- log(x = data.use)
             }
             return(data.use)
         })
-    avg.exp.scaled <- as.vector(x = t(x = avg.exp.scaled))
+    avg.exp.scaled <- as.vector(t(x = avg.exp.scaled))
+    
     if (split.colors) {
         avg.exp.scaled <- as.numeric(x = cut(x = avg.exp.scaled, 
             breaks = 20))
     }
+    
     data.plot$avg.exp.scaled <- avg.exp.scaled
     data.plot$features.plot <- factor(x = data.plot$features.plot, 
         levels = features)
@@ -131,22 +146,38 @@ function (object, assay = NULL, features, cols = c("lightgrey",
             levels = unique(x = feature.groups))
     }
     
-    plot <- ggplot(data = data.plot, mapping = aes_string(x = "features.plot", 
-        y = "id")) + geom_point(mapping = aes_string(size = "pct.exp", 
-        color = color.by)) + scale.func(range = c(0, dot.scale), 
-        limits = c(scale.min, scale.max)) + theme(axis.title.x = element_blank(), 
-        axis.title.y = element_blank()) + guides(size = guide_legend(title = "Percent Expressed")) + 
-        labs(x = "Features", y = ifelse(test = is.null(x = split.by), 
-            yes = "Identity", no = "Split Identity")) + theme_cowplot()
+# Plotting ----------------------------------------------------------------------------------------
+    
+    plot <- ggplot(data = data.plot, 
+                   mapping = aes_string(x = "features.plot", y = "id")) + 
+        
+        geom_point(mapping = aes_string(size = "pct.exp", 
+                                        color = color.by)) + 
+        scale.func(range = c(0, dot.scale), 
+                   limits = c(scale.min, scale.max)) + 
+        
+        theme(axis.title.x = element_blank(), 
+              axis.title.y = element_blank()) + 
+        
+        guides(size = guide_legend(title = "Percent Expressed")) + 
+        labs(x = "Features", 
+             y = ifelse(test = is.null(split.by), 
+            yes = "Identity", no = "Split Identity")) + 
+        
+        theme_cowplot()
+    
     if (!is.null(x = feature.groups)) {
-        plot <- plot + facet_grid(facets = ~feature.groups, scales = "free_x", 
-            space = "free_x", switch = "y") + theme(panel.spacing = unit(x = 1, 
-            units = "lines"), strip.background = element_blank())
+        plot <- plot + facet_grid(facets = ~feature.groups, 
+                                  scales = "free_x", 
+                                  space = "free_x", switch = "y") + 
+                        
+            theme(panel.spacing = unit(x = 1, units = "lines"), 
+                  strip.background = element_blank())
     }
     if (split.colors) {
         plot <- plot + scale_color_identity()
     }
-    else if (length(x = cols) == 1) {
+    else if (length(cols) == 1) {
         plot <- plot + scale_color_distiller(palette = cols)
     }
     else {
@@ -157,5 +188,4 @@ function (object, assay = NULL, features, cols = c("lightgrey",
     }
     return(plot)
 }
-```
 

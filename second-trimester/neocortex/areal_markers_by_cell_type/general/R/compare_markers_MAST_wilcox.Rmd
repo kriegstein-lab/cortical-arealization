@@ -70,7 +70,10 @@ markers_by_group$diagrams <- markers_by_group %>% select(group, venn) %>%
                                 pmap(function(group = ..1, venn_result = ..2) {
                                               p <- venn.diagram(venn_result@input, filename = NULL)
                                               p <- grobTree(p, name = group)
-                                })
+                                              # How to make objects from VennDiagram compatible with 
+                                              # cowplot plot_grid?
+                                              #https://stackoverflow.com/a/51006231/4463919
+                                              })
 
 width_p = 20
 height_p = width_p * 1.33
@@ -81,57 +84,9 @@ p <- (markers_by_group$diagrams %>%
 print(p)
 dev.off()
 
-                    # col = col,
-                    # fill = mycol[seq_len(n)],
-                    # alpha = alpha,
-                    # cex = cex,
-                    # cat.col = mycol[seq_len(n)],
-                    # cat.cex = cat.cex,
-                    # cat.fontface = cat.fontface,
-                    #cat.pos=cat.pos,
-                    #cat.dist=cat.dist,
-                    # margin = margin)
-p_load(cowplot)
-plot_grid(grobTree(p), labels = "AUTO")
+write_rds(markers_by_group, 'markers_by_celltype_area_MAST_wilcox_venn.rds')
 ```
  
- 
-```{r}
-png(filename = 'test2.pdf')
-grid.draw(x)
-dev.off()
-
-dev.list()
-l <- linesGrob()
-grid:::drawGrob(l)
-p_load(grid)
-
-newpage()
-
-my_circle <- circleGrob(x = 0.5, y = 0.5, r = 0.5,
-                        gp = gpar(col = "gray", lty = 3))
-grid.draw(my_circle)
-
-res@wide
-
-
-p <- venn.diagram(res@input, filename = NULL)
-
-                    # col = col,
-                    # fill = mycol[seq_len(n)],
-                    # alpha = alpha,
-                    # cex = cex,
-                    # cat.col = mycol[seq_len(n)],
-                    # cat.cex = cat.cex,
-                    # cat.fontface = cat.fontface,
-                    #cat.pos=cat.pos,
-                    #cat.dist=cat.dist,
-                    # margin = margin)
-p_load(cowplot)
-plot_grid(grobTree(p), labels = "AUTO")
-```
-
-
 
 # Functions ----------------------------------------------------------------------------------------
 ```{r 20201128-1613}

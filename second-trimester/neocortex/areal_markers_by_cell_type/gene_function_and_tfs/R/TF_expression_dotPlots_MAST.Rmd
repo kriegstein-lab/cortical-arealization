@@ -1,0 +1,161 @@
+---
+title: "TF expression dot plots with MAST genes"
+output: html_document
+---
+
+# DotPlots: TF expression
+
+across areas and stages
+
+```{r}
+source('./funcs/make_TFDotPlots.R')
+
+# Start with p < 0.1 markers.
+markers_ab %<>% rename(enrichment.ratio = 'gene.ratio')
+tfs_MAST <- markers_MAST %>% left_join(tfs_db %>% select(gene = 'hgnc_symbol', family)) %>% filter(!is.na(family))
+tfs_wilcox <- markers_ab %>% left_join(tfs_db %>% select(gene = 'hgnc_symbol', family)) %>% filter(!is.na(family))
+
+# Combine both tables of marker TFs into a single one with a source column.
+tfs_MAST_wilcox <- imap(lst(tfs_MAST, tfs_wilcox), ~ .x %>% mutate(source = .y)) %>% reduce(bind_rows)
+
+tfs_MAST_wilcox %<>% 
+  unite(group, cell_type, area, stage, remove = FALSE) %>% 
+  arrange(cell_type, area, stage, gene) %>% 
+  select(gene, group, individual, gene.score, enrichment.ratio, pct.1, pct.2, avg_logfc,
+         everything())
+
+# Synthesize genes into a single vector.
+tfs_by_group_MAST_wilcox <- tfs_MAST_wilcox %>% group_by(cell_type, area, stage) %>% 
+                              summarise(genes = list(unique(as.character(gene)))) %>%
+                                unite(group, cell_type, area, stage, remove = FALSE)
+# [2020-11-29] Start from here to make dotplots.
+```
+
+# - - - - - - - - - - -
+```{r}
+# markers_plot_MAST <- markers_MAST %>% dplyr::filter(p_val_adj <= 0.1 & is_tf == 'TF')
+# markers_plot_wilcox <- markers_ab %>% dplyr::filter(p_val_adj <= 0.1 & is_tf == 'TF')
+markers_plot <- tfs_by_group_MAST_wilcox
+
+gene_list <- markers_plot %>% filter(cell_type == 'rg', 
+                                     area == 'pfc', stage == 'early')
+
+seurat_object <- ncx_full %>% subset(subset = (cell_type == 'rg' & 
+                                                 stage == 'early'))
+
+dotplot <- makeDotPlot(seurat_object = seurat_object, 
+                       cell_type = 'rg', area = 'pfc', 
+                       genes_list = gene_list$genes, scale = TRUE)
+
+# Fix axis order ffs
+dotplot[[1]]$data %<>% 
+  separate(id, into = c('cell_type', 'id')) %>% 
+  mutate(features.plot = as.factor(as.character(features.plot)),
+         id = factor(id, levels = levels(ncx_full@meta.data$area))
+  )
+
+x <- dotplot[[1]]$data %>% separate(id, c('individual', 'area'), remove = FALSE) %>% 
+  group_by(features.plot, individual) %>%
+  mutate(scaled_exp = scale(avg.exp, center = TRUE),
+         area = factor(area, levels = levels(ncx_full@meta.data$area))) %>%
+  arrange(individual, area) %>% 
+  mutate(id = as_factor(as.character(id)),
+         features.plot = as.factor(as.character(features.plot)))
+         
+
+
+dotplot <- ggplot(x) + geom_point(aes(x = features.plot, y = id, 
+                           color = scaled_exp, size = pct.exp)) +
+  scale_colour_gradientn(colours = rev(heatmap.colors),
+                       # TODO Maybe keep high yellow, low blue gradient.
+        #values = c(0, 0.3, 1),
+        # breaks = c(0, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9),
+        # limits = c(0.01, 0.9),
+        na.value = "white") +
+  
+  
+  theme_cowplot() +
+  theme(axis.text.x = element_text(size = 6, angle = 45, vjust = 1, hjust = 1),
+              axis.title.x = element_blank(),
+              legend.position = "bottom") 
+
+dotplot %>% ggplotly()
+```
+
+```{R}
+lapply(lst(tfs_MAST, tfs_wilcox), function(x) distinct(x, gene, cell_type, stage, area))
+
+# 277 TF genes
+
+tf_go <- left_join(go_ids, tfs_and_cofactors$tf_go_df[[1]]) %>% arrange(hgnc_symbol)
+
+markers_all %<>% left_join(tfs)
+
+markers_all %<>% mutate(is_tf = case_when(! is.na(family) ~ 'TF',
+                                             TRUE ~ 'non_TF'))
+
+markers_all %>% filter(! is.na(family))
+
+# Somehow I had gotten all the genes that were TFs across all the groups? ??
+markers_MAST %>% dplyr::filter(p_val_adj <= 0.1 & is_tf == 'TF') %>% count(cell_type, area, region)
+
+tfs_MAST %>% count(cell_type, area, region)
+```
+
+
+```{r}
+ncx_full@meta.data %<>% set_rownames(value = .$cell_name)
+Idents(ncx_full) <- 'cell_type'
+# TODO save this onject
+
+ncx_full@active.ident
+
+ncx_full@meta.data %>% filter(individual == 'gw16') %>% count(cell_type, area)
+ncx_full@meta.data$area
+
+THIS NEEDS TO BE SCALED BY EACH INDIVIDUAL.
+```
+
+
+# Plots: Trying to understand scaling vs not. 
+Dot plots showing each individual of a stage.
+```{r}
+dotplot2 <- makeDotPlot(seurat_object = seurat_object, 
+                        cell_type = 'rg', area = 'pfc', scale = TRUE,
+                       genes_list = list(gene_list$early[-1]))
+
+dotplot2[[1]]$data
+```
+```{r}
+dotplot2 <- makeDotPlot(seurat_object = seurat_object, 
+                        cell_type = 'rg', area = 'pfc', scale = FALSE,
+                       genes_list = list(gene_list$early[-1]))
+```
+Not scaled, each gene separately. (own size scale)
+```{r}
+dotplot2 <- makeDotPlot(seurat_object = seurat_object, 
+                        cell_type = 'rg', area = 'pfc', scale = TRUE,
+                       genes_list = gene_list$early[-1])
+```
+```{r}
+dotplot2 <- makeDotPlot(seurat_object = seurat_object, 
+                        cell_type = 'rg', area = 'pfc', scale = FALSE,
+                       genes_list = gene_list$early[-1])
+```
+
+
+
+
+
+# Actually make plots.
+Combine individuals into stages like before.
+Only show stage relevant to the marker gene.
+Combine wilcox and MAST genes?
+```{r}
+tfs_by_group_MAST_wilcox$genes
+
+
+
+
+```
+
