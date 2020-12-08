@@ -94,22 +94,6 @@ ggsave(plot = dotplot_panel,
 
 
 ```{r}
-areas.rgx <- ncx_full@meta.data$area %>% unique %>% paste(collapse = "|")
-
-heatmap.colors <- 
-  c("Vermilion" = "#DF4619",
-    "Flame"="#E45A17",
-    "Marigold"="#F4AD39",
-    "Naples Yellow"="#FAD85F",
-    "Key Lime"="#F0FD8C",
-    "Light Green"="#ADF196",
-    "Maximum Blue Green"="#25BFC6",
-    "Pacific Blue"="#21AFCB",
-    "Blue NCS"="#1A90C1")
-```
-
-
-```{r}
 # Cannot install ggarrange
 p_load(ggpubr)
 ggarrange(dotplots_rg_pfc_byStage)

@@ -10,8 +10,9 @@ expandMetadata <- function(data_frame) {
                      stage = fct_collapse(individual,
                                           early = c('gw14', 'gw16', 'gw17'),
                                            mid = c('gw18_2', 'gw18', 'gw19_2', 
-                                                   'gw19', 'gw20', 'gw20_31', 'gw20_34','gw20_31and34'),
-                                           late = c('gw22', 'gw22t', 'gw22both','gw25')),
+                                                   'gw19', 'gw20', 'gw20_31', 'gw20_34'), #,'gw20_31and34'),
+                                           late = c('gw22', 'gw22t', #'gw22both',
+                                                    'gw25')),
                      area = factor(tolower(area), 
                                    levels = c('pfc', 'motor', 'somatosensory', 
                                               'parietal', 'temporal', 'v1')),
@@ -23,4 +24,4 @@ expandMetadata <- function(data_frame) {
                      unite('celltype_stage', cell_type, stage, sep = '_', remove = FALSE) %>%
                      unite('celltype_region', cell_type, region, sep = '_', remove = FALSE)
 
-                    }
+}

@@ -20,6 +20,9 @@ data.dir <- file.path(repo_dir, '/neocortex/ncx_data/')
 markers_ab <- read_tsv(comment = '#',
                       '../../tbls_in/markers_by_celltype_and_indiv/df_markers_by_celltype_indiv_all.txt')
 # p-value goes from 0-1 (not filtered.)
+
+markers_MAST <- read_tsv("../out/area_markers_by_individual_and_celltype_MAST_20201127-2304.txt")
+# p-value goes from 0-1 (not filtered.)
 ```
 
 Expand metadata and filter cells to keep excitatory lineage only.
@@ -31,16 +34,21 @@ markers_ab %<>% rename(cell_type = 'celltype') %>%
                   expandMetadata() %>%
                     dplyr::filter(cell_type %in% cell_types)
 
-write_tsv(markers_ab, '../../tbls_in/markers_by_celltype_and_indiv/markers_by_celltype_indiv_all_exn.txt')
+markers_MAST %<>% rename(area = 'cluster') %>% expandMetadata()
+
+# markers_ab %>% write_tsv('../../tbls_in/df_markers_by_celltype_and_indiv/markers_by_celltype_indiv_all_exn.txt')
+# markers_MAST %>% write_tsv('../../tbls_in/markers_by_celltype_indiv_all_MAST.txt')
+markers_ab <- read_tsv('../../tbls_in/df_markers_by_celltype_and_indiv/markers_by_celltype_indiv_all_exn.txt')
 ```
 
 ```{r}
+markers <- lst(markers_ab, markers_MAST) %>% 
+  purrr::modify(~ dplyr::filter(.x, p_val_adj <= 0.1))
 
-markers_ab %<>% dplyr::filter(p_val_adj <= 0.1)
-markers_MAST <- markers_all %>% dplyr::filter(p_val_adj <= 0.1)
+write_rds(markers, '../markers_MAST_wilcox_p0.1.rds')
 
-unique_genes_ab <- markers_ab %>% getUniqueGenesByGroup()
-unique_genes_MAST <- markers_MAST %>% getUniqueGenesByGroup()
+unique_genes_ab <- markers$markers_ab %>% getUniqueGenesByGroup()
+unique_genes_MAST <- markers$markers_MAST %>% getUniqueGenesByGroup()
 
 markers_by_group_p0.1 <- left_join(unique_genes_ab, unique_genes_MAST, 
                               by = c('cell_type', 'area', 'stage'), 
