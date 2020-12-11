@@ -1,0 +1,263 @@
+---
+title: "ChEA Analysis"
+output: html_notebook
+date: 2020-12-07
+---
+
+# getChEA
+```{r}
+p_load(httr, js, jsonlite)
+
+getChEA <- function(genes, query_name) {
+  
+		# genes = c("SMAD9","FOXO1","MYC","STAT1",'STAT3',"SMAD3")
+									
+									url = "https://maayanlab.cloud/chea3/api/enrich/"
+									encode = "json"
+									payload = list(query_name = query_name, gene_set = genes)
+									
+									#POST to ChEA3 server
+									response = POST(url = url, body = payload, encode = encode)
+									json = content(response, "text")
+									
+									#results as list of R dataframes
+									results <- fromJSON(json)
+}
+```
+
+# Markers from each group
+(cell type / area / stage)							
+```{r}
+markers <- read_rds('../../general/markers_MAST_wilcox_p0.1.rds')
+
+markers %<>% imap(~ mutate(.x, test = .y)) %>% reduce(bind_rows)
+
+markers_split_by_group <- markers %>% 
+  unite(group, 'cell_type', 'stage', 'region', remove = FALSE) %>% split(f = .$group)
+
+chea <- markers_split_by_group %>% 
+          imap(~ getChEA(genes = .x$gene, query_name = .y))
+
+chea %<>% enframe(name = 'group', value = 'result')
+
+write_rds(chea, '~/Dropbox/ARK-lab/2nd Trimester Areas Paper/neocortex/markers_area_celltype/transcription_factors/ChEA_TF_predictions_by_group.rds')
+```
+
+
+# Combine tables
+Into aa single table with a column for the `query_genes` for which a TF was predicted, 
+and a column for the orginal source table.
+```{r 2020-12-09}
+
+chea_table <- chea$result %>%
+  map(~ rbindlist(.x, fill = TRUE, idcol = 'table')) %>% 
+  rbindlist() %>% 
+  rename(query_genes = 'Query Name') %>%
+  set_names(value = tolower(names(.))) %>%
+  separate(query_genes, into = c('cell_type', 'stage', 'region'), remove = FALSE) %>%
+  mutate(cell_type = factor(cell_type, levels = c('rg', 'ipc', 'neuron')),
+         region = factor(region, levels = c('pfc', 'msp', 'temporal', 'v1')),
+         stage = factor(stage, levels = c('early', 'mid', 'late'))
+  ) %>% arrange(cell_type, region, stage)
+
+dir_dropbox <- '~/Dropbox/ARK-lab/2nd Trimester Areas Paper/neocortex/markers/transcription_factors'
+write_tsv(chea_table, path = file.path(dir_dropbox, 'ChEA_TF_predictions_by_group.txt'))
+```
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# Find instersection
+between group and upstream cell population markers
+
+## Examples: PFC early and V1 early
+```{r 2020-12-08}
+x <- chea %>% dfilter(group %>% str_detect('early_v1')) %>% .$result
+
+a <- tfs$MAST_wilcox_by_group %>% dfilter(group == 'rg_v1_early') %>% .$genes %>% .[[1]]
+
+pfc_early <- map(x, function(chea_results) {
+  
+        b <- chea_results$`Integrated--meanRank`$TF
+        intersection <- a[a %in% b]
+        chea_results$`Integrated--meanRank` %>% dfilter(TF %in% intersection)
+        
+})
+
+v1_early <- map(x, function(chea_results) {
+  
+        b <- chea_results$`Integrated--meanRank`$TF
+        intersection <- a[a %in% b]
+        chea_results$`Integrated--meanRank` %>% dfilter(TF %in% intersection)
+        
+})
+```
+
+## Pooled cell type-areas
+```{r 2020-12-09}
+tfs$MAST_wilcox_by_group %<>% ungroup %>%
+  mutate(region = fct_collapse(area, 
+                               msp = c('motor', 'somatosensory', 'parietal')))
+
+chea_table <- chea_table %<>% mutate(score = as.numeric(score))
+
+neuron_groups <- chea_table %>% distinct(cell_type, region) %>% dfilter(cell_type == 'neuron')
+
+
+
+test <- venn_diagrams %>% map(~ .x$p_venn, grobTree)
+
+wrap_plots(venn_diagrams[[1]]$p_venn %>% grobTree, venn_diagrams[[2]]$p_venn %>% grobTree, ncol = 2)
+
+venn_diagrams <- neuron_groups$region %>% map(~ cheaVenn(region_use = .x, frac_keep = 0.2))
+plots <- map(venn_diagrams, wrap_plots) %>% wrap_plots(nrow = 4) 
+
+ggsave(plot = plots, filename = file.path(dir_dropbox,'venn_chea_rg_markers_top20pct_all_regions.pdf'), 
+                                                                   width = 20, height = 30, device = 'pdf')
+```
+
+```{r}
+cheaVenn <- function(region_use = 'pfc', 
+                     df_chea = chea_table, 
+                     table_use = 'Integrated--meanRank',
+                     score_threshold,
+                     frac_keep = 0.20,
+                     df_marker_tfs = tfs$MAST_wilcox_by_group) {
+  
+  # Define which TFs to use from the ChEA results table. -------------------------------------------
+  
+    # a) Find top n TFs -------------------------------------------------------------------
+    df_chea_split <- df_chea %>% dfilter(table == table_use & 
+                                   query_genes %>% str_detect(paste0('neuron_.*_', region_use))) %>% 
+                                      split(.$query_genes)
+
+    df_chea_top <- df_chea_split %>% map(~ mutate(.x, score = as.numeric(score)) %>%
+                                top_frac(n = frac_keep, wt = -score)) %>%
+                rbindlist %>% distinct(tf, .keep_all = TRUE)
+    
+    tfs_chea <- df_chea_top %>% count(tf) %>% .$tf
+    
+     # b) Keep TFs with score < threshold ----------------------------------------------------------
+    
+     # df_chea <- df_chea %>% mutate(score = as.numeric(score)) %>%
+     #                         dfilter(table == table_use &
+     #                           cell_type == 'neuron' & region == region_use &
+     #                             score <= score_threshold)
+    
+     # # Count how many TFs above score threshold for each stage
+     # tfs_pred_per_stage <- df_chea %>% group_by(query_genes) %>% 
+     #                         summarise(n_distinct(tf))
+     # 
+     # tfs_chea <- df_chea %>% count(tf) %>% .$tf
+    
+  # Get RG marker TFs for this area/region ---------------------------------------------------------
+    
+    df_marker_tfs <- df_marker_tfs %>% ungroup %>% 
+                        dfilter(cell_type == 'rg' & region == region_use)
+    
+    tfs_markers <- df_marker_tfs %>% unlist(x = .$genes, use.names = FALSE) %>% sort %>% unique
+    
+  # Calculate overlap and make Venn diagram --------------------------------------------------------
+    
+    # venn_result <- VennDiagram::calculate.overlap(x = lst(tfs_rg_markers, tfs_predicted))
+    venn_result <- get.venn.partitions(x = lst(tfs_markers, tfs_chea))
+    
+    tf_markers_only <- venn_result %>% 
+      dfilter(tfs_markers == TRUE & tfs_chea == FALSE) %>% pull(`..values..`)
+    
+    compare_list <- lst(tfs_markers, tfs_chea)
+    
+    # a) VennDiagram::venn.diagram
+    
+    # p <- venn.diagram(x = compare_list, force.unique = TRUE, 
+    #                   filename = NULL, main = paste('TFs ', region_use),
+    #                   ) %>% grobTree(name = region_use)
+    #                           # How to make objects from VennDiagram compatible with 
+    #                           # cowplot plot_grid?
+    #                           #https://stackoverflow.com/a/51006231/4463919
+    # 
+    
+    # b) Add item labels (adapted from RAM::venn.group)
+    p_venn <- vennGroup(title = paste0('TFs ', region_use),
+                        compare_list, label = TRUE, 
+                fill = c("orange", "blue"),
+                cat.pos = c(-1, 1),
+            cat.dist = c(0.02, 0.02),
+            cat.cex = 2,
+            lab.cex= 0.5, width = 20, height = 20) %>%
+      
+            grobTree(name = region_use)
+    
+    # ggsave(plot = p, file.path(dir_dropbox, paste0('venn_tf_', region_use, '.pdf')), 
+    #       width = 5, height = 5)
+    
+  # TF score distribution of selected ChEA TFs -----------------------------------------------------
+    scoreDistribution <- function(df) {
+      
+        p <- df %>% 
+        ggplot(aes(x = score)) +
+        geom_density(aes(fill = query_genes, colour = query_genes), alpha = 0.3) +
+        geom_density(alpha = 0.2, colour = 'grey20', linetype = 'dashed', show.legend = FALSE) +
+        theme_minimal()
+      
+      #  ggsave(plot = p, 
+      #     filename = file.path(dir_dropbox, paste0('tf_score_distribution_', region_use, '.pdf')), 
+      #     width = 7, height = 5)  
+    }
+   
+     p_scores <- df_chea_top %>% scoreDistribution
+     
+     return(lst(p_venn, p_scores))
+
+}
+```
+
+Add gene names to the venn diagrams
+```{r}
+p_load(RAM)
+
+
+test %>% map(~ ggsave(plot = .x, filename = 'test.pdf', device = 'pdf'))
+
+getwd()
+
+p[[7]]$x %<>% .[1]
+p[[6]]$y
+
+p[[5]]$label
+
+grid::grid.newpage()
+grid::grid.draw(p)
+      
+region_use = 'pfc'
+```
+```{r}
+group.venn
+```
+
+
+pdf('../out/venn/_test.pdf', height = height_p, width = width_p)
+p <- plot_grid(p, labels = )
+print(p)
+dev.off()
+
+# 1,655 TFs in whole TF db (humanTFdb).
+# 1,632 TFs in ChEA
+
+
+
+score_distrib <- df %>% as_tibble %>% ggplot(aes(x = as.numeric(score))) +
+  geom_density(aes(fill = query_genes, colour = query_genes), alpha = 0.3) +
+   geom_density(alpha = 0.2, colour = 'grey20', linetype = 'dashed', show.legend = FALSE) +
+  theme_minimal()
+
+ggsave(plot = score_distrib, file.path(dir_dropbox, 'tf_score_distribution_pfc_early.pdf'), width = 7, height = 5)  
+
+plot <- chea_table %>% dfilter(table == 'Integrated--meanRank' & query_genes %>% str_detect('neuron_.*_pfc')) %>% 
+  dfilter(tf %in% rg_markers_pool) %>% 
+  scoreDistribution()
+
+
+rg_markers_pool <- df_marker_tfs %>% unlist(x = .$genes, use.names = FALSE) %>% sort %>% unique
+```
+
+			

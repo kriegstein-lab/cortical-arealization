@@ -1,18 +1,24 @@
 # Modified / annotated by CSE
 # 2020-12-01
 
-DotPlot <- function (object, assay = NULL, features, cols = c("lightgrey", 
+myDotPlot <- function (object, assay = NULL, features, cols = c("lightgrey", 
     "blue"), col.min = -2.5, col.max = 2.5, dot.min = 0, dot.scale = 6, 
     idents = NULL, group.by = NULL, split.by = NULL, cluster.idents = FALSE, 
     scale = TRUE, scale.by = "radius", scale.min = NA, scale.max = NA) 
 {
     assay <- assay %||% DefaultAssay(object = object)
     DefaultAssay(object = object) <- assay
-    split.colors <- !is.null(x = split.by) && !any(cols %in% 
-        rownames(x = brewer.pal.info))
+                      # Is split.by TRUE?  -> Clause TRUE if split.by = some variable.
+    split.colors <- ! is.null(split.by) && 
+                       # Are any of the colors provided in the brewer.pal.info dataframe?
+                       # Clause TRUE if none of them are in brewer.pal.info
+                    ! any(cols %in% rownames(brewer.pal.info))
+    
     scale.func <- switch(EXPR = scale.by, size = scale_size, 
         radius = scale_radius, stop("'scale.by' must be either 'size' or 'radius'"))
+    
     feature.groups <- NULL
+    
     if (is.list(features) | any(!is.na(names(features)))) {
         feature.groups <- unlist(x = sapply(X = 1:length(features), 
             FUN = function(x) {
@@ -25,6 +31,7 @@ DotPlot <- function (object, assay = NULL, features, cols = c("lightgrey",
         features <- unlist(x = features)
         names(x = feature.groups) <- features
     }
+    
     cells <- unlist(CellsByIdentities(object = object, idents = idents))
     
     data.features <- FetchData(object = object, vars = features, 
@@ -42,10 +49,10 @@ DotPlot <- function (object, assay = NULL, features, cols = c("lightgrey",
     id.levels <- levels(x = data.features$id)
     data.features$id <- as.vector(x = data.features$id)
     
-    if (!is.null(split.by)) {
+    if (! is.null(split.by)) {
         
         splits <- object[[split.by, drop = TRUE]][cells, drop = TRUE]
-        if (split.colors) {
+            if (split.colors) {
             if (length(x = unique(x = splits)) > length(x = cols)) {
                 stop("Not enough colors for the number of groups")
             }
@@ -56,7 +63,6 @@ DotPlot <- function (object, assay = NULL, features, cols = c("lightgrey",
         unique.splits <- unique(x = splits)
         id.levels <- paste0(rep(x = id.levels, each = length(x = unique.splits)), 
             "_", rep(x = unique(x = splits), times = length(x = id.levels)))
-    }
     
     data.plot <- lapply(X = unique(x = data.features$id), 
                         FUN = function(ident) {
@@ -65,7 +71,7 @@ DotPlot <- function (object, assay = NULL, features, cols = c("lightgrey",
         avg.exp <- apply(X = data.use, MARGIN = 2, FUN = function(x) {
             return(mean(x = expm1(x = x)))
         })
-        pct.exp <- apply(X = data.use, MARGIN = 2, FUN = PercentAbove, 
+        pct.exp <- apply(X = data.use, MARGIN = 2, FUN = Seurat.PercentAbove, 
             threshold = 0)
         return(list(avg.exp = avg.exp, pct.exp = pct.exp))
     })
@@ -91,7 +97,7 @@ DotPlot <- function (object, assay = NULL, features, cols = c("lightgrey",
         warning("Only one identity present, the expression values will be not scaled", 
             call. = FALSE, immediate. = TRUE)
     }
-    
+}
 # SCALING -------------------------------------------------------------------------------------
     
     avg.exp.scaled <- sapply(X = unique(data.plot$features.plot), 
@@ -112,24 +118,26 @@ DotPlot <- function (object, assay = NULL, features, cols = c("lightgrey",
             }
             return(data.use)
         })
+    
     avg.exp.scaled <- as.vector(t(x = avg.exp.scaled))
     
-    if (split.colors) {
-        avg.exp.scaled <- as.numeric(x = cut(x = avg.exp.scaled, 
-            breaks = 20))
-    }
+    # if (split.colors) {
+    #    avg.exp.scaled <- as.numeric(x = cut(avg.exp.scaled, 
+    #        breaks = 20))
+    # }
     
     data.plot$avg.exp.scaled <- avg.exp.scaled
     data.plot$features.plot <- factor(x = data.plot$features.plot, 
         levels = features)
     data.plot$pct.exp[data.plot$pct.exp < dot.min] <- NA
     data.plot$pct.exp <- data.plot$pct.exp * 100
-    if (split.colors) {
-        splits.use <- vapply(X = as.character(x = data.plot$id), 
-            FUN = gsub, FUN.VALUE = character(length = 1L), pattern = paste0("^((", 
-                paste(sort(x = levels(x = object), decreasing = TRUE), 
-                  collapse = "|"), ")_)"), replacement = "", 
-            USE.NAMES = FALSE)
+    
+    # if (split.colors) {
+    #    splits.use <- vapply(X = as.character(x = data.plot$id), 
+    #        FUN = gsub, FUN.VALUE = character(length = 1L), pattern = paste0("^((", 
+    #            paste(sort(x = levels(x = object), decreasing = TRUE), 
+    #              collapse = "|"), ")_)"), replacement = "", 
+    #        USE.NAMES = FALSE)
         data.plot$colors <- mapply(FUN = function(color, value) {
             return(colorRampPalette(colors = c("grey", color))(20)[value])
         }, color = cols[splits.use], value = avg.exp.scaled)
