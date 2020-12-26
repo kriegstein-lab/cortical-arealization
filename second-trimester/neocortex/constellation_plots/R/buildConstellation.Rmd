@@ -1,17 +1,18 @@
 ---
 title: "Constellation Plots" 
 params:
-  cells.cl.df: cells.cl.df # s.obj@meta.data
-  groups.col: ""  # character, name of column to group by
+  cells.cl.df: NULL # s.obj@meta.data
+  groups.col: NULL  # character, name of column to group by
   rd.dat: list()
   colors.use : c()
   cl: NULL
   cl.numeric: NULL
-  n.pcs: NULL,
-  run.knn: NULL
-  k: NUL,
-  frac.th: NULL,
+  n.pcs: 20,
+  run.knn: TRUE
+  k: 15,
+  frac.th: 0.05,
   cl.df: NULL
+  out.dir: '../out'
 ---
 
 ```{r}
@@ -26,6 +27,7 @@ colors.use <- params$colors.use
 cl.numeric <- params$cl.numeric
 n.pcs <- params$n.pcs
 k <- params$k
+out.dir <- params$out.dir
 frac.th <- params$frac.th
 run.knn <- params$run.knn
 ```
@@ -59,17 +61,19 @@ source_rmd("scrattch.hicat_fxns.Rmd")
 # 1. Build dataframes for constellation plots.
 
 1
-```{r cl, eval=FALSE, include=FALSE}
+```{r cl, eval=TRUE, include=TRUE}
 
 # Cluster, or area-celltype combination.
 cl <- cells.cl.df[[groups.col]] %>% as.factor %>% 
   set_names(cells.cl.df$cell.name)
 # 128 clusters in all _combo2_ cells
 # 77 clusters in all _combo2_ & ExN lineage cells.
+
+cl.numeric <- as.numeric(cl) %>% set_names(value = names(cl))
 ```
 
 2
-```{r cl.df, eval=FALSE, include=FALSE}
+```{r cl.df, eval=TRUE, include=TRUE}
 
 cl.df <- get_cl_df(cl)
 
@@ -80,28 +84,32 @@ cl.df$clade <- str_split_fixed(cl.df$cluster_label, "-", 2)[ ,1] %>% tolower
 # cl.df <- cl.df %>% left_join(clade.cols)
 
 
-cl.df <- cl.df %>% left_join(colors.use, by = c("clade" = "group")) 
+cl.df <- cl.df %>% left_join(colors.use) 
 # %>%  rename(cluster_color = "colors.use")
 # rm(group.cols)
 
 # cells.cl.df: Add cluster_id column from cl.df; remove unused columns. 
 cells.cl.df <- left_join(cells.cl.df,
                          # %>% select(cell.name, groups.col, combined.cluster.2),
-                         cl.df,
-                         # %>% select(cluster_label, cluster_id), 
-                         by = c(groups.col = "cluster_label")
-) %>% mutate(cluster_id = as.factor(cluster_id))
+                         cl.df, by = 'cluster_label') %>%
+                         
+                         # Requires cells.cl.df (metadata) to have column being used for groups
+                         # named 'cluster_label' to match with cl_df during join.
+                 mutate(cluster_id = as.factor(cluster_id))
 ```
 
 # 4 Find cluster centers from UMAP coordinates
 ```{r rd.cl.center}
 
-rd.cl.center <- get_RD_cl_center(rd.dat = rd.dat$umap, cl) 
+rd.cl.center <- get_RD_cl_center(rd.dat = rd.dat$umap, cl)
+message("Got rd.cl.center")
+```
 
+```{r update-rd.cl.center}
 rd.cl.center %<>% 
   as.data.frame %>% 
   set_names(c("x", "y")) %>%
-  add_column(cl = cl.df$cl_id, .before = "x") %>%
+  add_column(cl = cl.df$cluster_id, .before = "x") %>%
   # add_column preserves rownames.
   # but moving rownames to column cluster_label anyway bc of left_join below.
   rownames_to_column("cluster_label")
@@ -126,7 +134,9 @@ knn.result <- RANN::nn2(data = rd.dat$pca[, 1:n.pcs], k = k)
 ```
 
 
-```{r knn.cl}}
+```{r knn.cl}
+cl.numeric <- as.numeric(cl) %>% set_names(value = names(cl))
+# Can also be passed as a param to the Rmd.
 
 knn.cl <- get_knn_graph(rd.dat = rd.dat$umap, 
                         cl.df =  cl.df, 
@@ -137,8 +147,9 @@ knn.cl <- get_knn_graph(rd.dat = rd.dat$umap,
 ```
 
 # 2. Make constellation plot
-```{r make-constellation}
-# Keep only cells where $frac [fraction of cells in cluster with nearest neighbors in different cluster] >= 0.05.
+```{r knn_cl_df_filter}
+
+# Keep only cells whose $frac (fraction of cells in cluster with nearest neighbors in a different cluster) >= 0.05.
 # Defined in `get_knn_graph`: 
 # knn.cl.df$frac = knn.cl.df$Freq / knn.cl.df$cl.from.total
 # 10% : 213 edges
@@ -147,8 +158,9 @@ knn.cl.df.filter <- knn.cl$knn.cl.df %>% dplyr::filter(frac >= frac.th)
 # cl.to, cl.from numeric or factor?
 # Need to be numeric for getting the rows where cl.to == cl.from (knn.cl.df$same)
 knn.cl.df.filter %<>% mutate(cl.from = as.numeric(cl.from), cl.to = as.numeric(cl.to))
+```
 
-
+```{r plot-constellation}
 # Plot only edges between ExN lineage clusters.
 # knn.cl.df %<>% filter_at(vars(cl.from.label, cl.to.label), 
 #                        all_vars(str_detect(., "RG|IPC|Neuron|OPC|Dividing"))
@@ -156,10 +168,14 @@ knn.cl.df.filter %<>% mutate(cl.from = as.numeric(cl.from), cl.to = as.numeric(c
 
 # cl.center.df$cluster_label %<>% str_remove("_combo2")
 
-cl.plot <- plot_constellation(knn.cl.df = knn.cl.df.filter, cl.center.df = cl.center.df, out.dir = "../out",
-                              node.label = "cluster_label", exxageration = 0.4, curved = TRUE, 
+cl.plot <- plot_constellation(knn.cl.df = knn.cl.df.filter, 
+                              cl.center.df = cl.center.df, 
+                              out.dir = out.dir,
+                              node.label = "cluster_label",  # name of column in cl.center.df with cluster/node names
+                              exxageration = 0.4, curved = TRUE, 
                               plot.parts = FALSE, plot.hull = NULL, 
                               plot.height = 40, plot.width = 40,
-                              node.dodge = TRUE, label.size = 1.5, max_size = 25)
+                              node.dodge = TRUE, 
+                              label.size = 1.5, max_size = 25)
 
 ```

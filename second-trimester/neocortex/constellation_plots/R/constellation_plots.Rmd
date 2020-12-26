@@ -4,6 +4,7 @@ subtitle: "All Samples, All cell types"
 output: html_notebook
 ---
 
+
 ```{r global_options, include=FALSE}
 
 knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path = 'Figs/',
@@ -11,7 +12,7 @@ knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path = 'Figs/',
 
 p_load("ggthemes")
 ```
-***
+
  
 # TO-DOs
 - 8/10/20 | save wholebrain with updated @metadata as new .rds (has cluster assignments)
@@ -60,7 +61,6 @@ ncx.exn@assays$RNA@counts <- read_rds("../data/exn_lineage/ncx.v3.exn_counts.rds
 # 100k subset of excitatory neuron lineage only.
 ncx.exn.100k <- read_rds("../data/exn_lineage/toy/ncx.v3.exn.sub_100k.rds")
 
-ncx.exn@assays$RNA %>% str()
 
 # Cluster / marker tables.
 ncx.clusters <- read_delim("../tbls/83d19_Neocortex_allindividuals_combinedclusters_v1.txt",
@@ -379,7 +379,7 @@ colors.clade <- data.frame(# clade = unique(cl.df$clade),
 
 2. `cl.df`: table of clusters (or cell-type/area groups)
 
-# By celltype-region
+# Wholebrain By celltype-region
 ```{r}
 # rm(cl.center.df, 
 # knn, knn.cl.cl.counts, knn.cell.cl.counts, knn.dist, knn.result, pred.result, rd.cl.center, rd.dat, reductions, cl.knn.dist.mean, cl.knn.dist.sd, cl.knn.dist.th, groups.col, from.size, by, i, k, knn.dist.th, m, n, pred.prob, select.cells, q, to.size, total, nn.cl.df, outlier, knn.cl.df, nn.cl.df, s.obj)
@@ -552,10 +552,10 @@ rm(cl.center.df, cl.df.discrepancies, knn, knn.cl.cl.counts, knn.cell.cl.counts,
 ```
 # ____________________________________________________________________________________________________________
 
-# By cell type-area groups.
+# Neocortex: By cell type-area groups.
 
 ## 1. Add a cell.type-area column to metadata.
-```{r }
+```{r}
 ncx.exn@meta.data %<>% 
   mutate(combined.cluster.2 = str_remove(combined.cluster.2, "_combo2"),
          cell.type = str_replace(combined.cluster.2, "_[:digit:]+", replacement = "")) %>% 
@@ -620,7 +620,7 @@ rmarkdown::render("buildConstellation.Rmd",
 ```
 
 
-****************************************************************************************************
+# ****************************************************************************************************
 
 # 3. DE genes
 Find DE genes between connected clusters/nodes.
@@ -879,8 +879,7 @@ p$x$data[c(2,3)] <- NULL
 saveWidget(p, paste0("../out/DEgenes_", cluster_a, "_vs_", cluster_b, "scale.data_heatmap.html"), selfcontained = TRUE)
 ```
 
-***
-
+# --------------------------------------------------------------------------------------------------
 
 
 # Matrix: Individual/Area cell counts

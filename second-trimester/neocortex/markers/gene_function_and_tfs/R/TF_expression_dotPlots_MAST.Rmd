@@ -4,23 +4,29 @@ date: 2020-11-30
 output: html_document
 ---
 
-# Workspace
+# Prep
+
+### Workspace
+
 ```{r}
-save.image('TF_DotPlots_workspace.RData') # 2020-12-13 @ 00:06
+save.image('TF_DotPlots_workspace.RData') # 2020-12-1d3 @ 00:06
 
 write_rds(ncx_full, '../../../data/exn_lineage/neocortex_exn_seuratobj.rds') # 2020-12-13 @ 00:06
-write_rds(gw19_2, '../../../data/exn_lineage/gw19_2_v3_with_neurons.rds') # 2020-12-13 @ 00:06
+write_rds(gw19_2, '../../../data/exn_lineage/gw19_2_v3_with_neurons.rds')# 2020-12-13 @ 00:06
 ```
 
-# Libraries and functions
+### Libraries and functions
+
 ```{r}
 p_load(Seurat)
 source('./funcs/make_TFDotPlots.R')
 ```
 
-# Data
+### Data
+
 ```{r}
 ncx_full <- read_rds(file.path(data.dir, 'exn_lineage/neocortex_exn_seuratobj.rds'))
+
 # This includes gw19_2 neurons that were previously classified as excitatory. (merge_gw19_2_neurons.R)
 # This isn't just excitatory! (From gw16.)
 ncx_full@meta.data %>% count(cell_type)
@@ -41,10 +47,16 @@ ncx_full@meta.data %>% count(cell_type)
 markers <- read_rds('../../general/out/MAST_wilcox_compare/markers_MAST_wilcox_p0.1.rds')
 tfs <- read_rds('../out/TFs_MAST_wilcox_p0.1.rds')
 ```
-# Combine Wilcox and MAST genes and keep genes that are TFs. - - - - - - - - - - - - - - - - - - - -
-Output of these two blocks is saved in:
-`tfs <- read_rds('../out/TFs_MAST_wilcox_p0.1.rds')`
+
+# Prep, pt 2
+
+## Combine Wilcox and MAST genes, and keep TFs
+
+Output of these two blocks is saved in: `tfs <- read_rds('../out/TFs_MAST_wilcox_p0.1.rds')`
+
 ```{r}
+tfs <- read_rds('../out/TFs_MAST_wilcox_p0.1.rds')
+
 tfs_db %<>% select(gene = 'hgnc_symbol', family)
 
 # Start with p < 0.1 markers.
@@ -58,59 +70,48 @@ tfs$MAST_wilcox <- imap(tfs, ~ .x %>% mutate(source = .y)) %>% reduce(bind_rows)
 tfs$MAST_wilcox %<>% 
   unite(group, cell_type, area, stage, remove = FALSE) %>% 
   arrange(cell_type, area, stage, gene) %>% 
-  select(gene, group, individual, gene.score, enrichment.ratio, pct.1, pct.2, avg_logfc,
-         everything())
+  select(gene, group, individual, gene.score, enrichment.ratio, pct.1, pct.2, avg_logfc, everything())
 ```
 
 ## Group cell type / area / stage markers for plotting.
+
 Combine genes of a group into a single vector.
+
 ```{r}
 # By cell type, area, stage.
 tfs$MAST_wilcox_by_group <- tfs$MAST_wilcox %>% group_by(cell_type, area, stage) %>% 
                               summarise(genes = list(unique(as.character(gene)))) %>%
                                 unite(group, cell_type, area, stage, remove = FALSE)
 
-# By cell type and area (all stages)
+# By cell type and area (pooled stages)
 tfs$MAST_wilcox_by_celltype_area <- tfs$MAST_wilcox %>% group_by(cell_type, area) %>% 
-                                  summarise(genes = list(unique(as.character(gene)))) %>%
-                                    unite(group, cell_type, area, remove = FALSE)
+                                      summarise(genes = list(unique(as.character(gene)))) %>%
+                                        unite(group, cell_type, area, remove = FALSE)
 
 tfs %>% write_rds('../out/TFs_MAST_wilcox_p0.1.rds')
-# Start from here to make dotplots.
+
 ```
 
-# Make DotPlots - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Start from HERE to make dotplots.
 
-## Older way
-```{r}
-markers_plot <- tfs_by_group_MAST_wilcox
+----------------------------------------------------------------------------------------------------
 
-gene_list <- markers_plot %>% filter(cell_type == 'rg', 
-                                     area == 'pfc', stage == 'early')
+# Make DotPlots
 
-seurat_object <- ncx_full %>% subset(subset = (cell_type == 'rg' & 
-                                                 stage == 'early'))
+Call `make_DotPlots.R`
 
-dotplot <- makeDotPlot(seurat_object = seurat_object, 
-                       cell_type = 'rg', area = 'pfc', 
-                       genes_list = gene_list$genes, scale = TRUE)
+(Use Seurat's `DotPlot` function *only* to get the average expression per group.)
 
-# Fix axis order ffs
-dotplot[[1]]$data %<>% 
-  separate(id, into = c('cell_type', 'id')) %>% 
-  mutate(features.plot = as.factor(as.character(features.plot)),
-         id = factor(id, levels = levels(ncx_full@meta.data$area))
-  )
-```
+## Normal TF Plots
 
-# My DotPlots
-Use Seurat's DotPlot function only to get the average expression per group.
-```{r 2020-12-02}
-dotplots <- list()
+| Genes by area
+
+```{r 2020-12-02, message=TRUE, paged.print=TRUE}
+
 indivs_by_stage <- ncx_full@meta.data %>% count(stage, individual)
 
+dotplots <- list()
 
-# Make plots
 # Select which groups to plot.
 
 # By area (no stage)
@@ -118,14 +119,22 @@ groups_plot <- tfs$MAST_wilcox_by_celltype_area %>%
                 dplyr::filter(group %>% str_detect('rg'))
 
 # Make sure Seurat object is in shape for the function
-seurat_object@meta.data %<>% set_rownames(seurat_object@assays$RNA@counts %>% colnames)
-       seurat_object %<>% subset(subset = cell_type %in% c('rg', 'neuron', 'ipc')) %>%
-                            SetIdent(value = ident_col) #celltype_stage # cell_type
+  # - rownames in @metadata
+  # - set Idents from the specified metadata column (ident_col)
+
+    seurat_object@meta.data %<>% set_rownames(seurat_object@assays$RNA@counts %>% colnames)
+           
+    seurat_object %<>% subset(subset = cell_type %in% c('rg', 'neuron', 'ipc')) %>%
+                                SetIdent(value = ident_col) # ex: celltype_stage, cell_type
        
-# Plot
+# Make plots:
 dotplots <- groups_plot %>%
-              pmap( ~ makeTFDotPlots(seurat_object = ncx_full, ident_col = 'cell_type', 
-                                     group = ..1, cell_type = ..2, area = ..3, genes_plot = ..4))
+              pmap( ~ dotPlots_stagePanel(seurat_object = ncx_full, 
+                                     ident_col = 'cell_type', 
+                                     group = ..1, 
+                                     cell_type = ..2, 
+                                     area = ..3, 
+                                     genes_plot = ..4))
      
      names(dotplots) <- groups_plot$group
 
@@ -134,14 +143,99 @@ patchwork <- wrap_plots(dotplots) + plot_layout(nrow = 3)
 
 ggsave(plot = patchwork, filename = paste0('../out/plots/dotplots_by_area_rg.pdf'), device = 'pdf',
         width = 17, height = 11) 
+
 ```
 
-By area and age
-```{r}
+## **Normal TF Plots: Selected PFC/V1 genes, clustered**
+
+| `2020-12-21`
+| Cluster genes selected after manually curating dotplots above for each stage.
+
+```{r 2020-12-21}
+
+groups_plot <- tribble(
+  ~stage, ~cell_type, ~genes_pfc_v1,
+   'early', 'rg', 'NR2F1;NFIA;ZBTB18;TCF4;SOX11;NFIX;NFIB;HMGB2;ZNF462;ZIC2;FOXP1;FOXO3;BCL11A;SUB1;HOPX;HES4;FOS;DDIT3;CEBPD',
+   'mid', 'rg', 'ZNF711;ZEB2;YBX1;TSC22D1;SOX9;RORB;MAF1;HOPX;HMG20B;HES4;GABPB1;FOXK1;ETV1;CREB5;CARHSP1;ARID4A;ZNF511;ZIC2;TCF4;NR2F1;MAFF;JUNB;IRF1;ID1;FOS;FEZF2;ETV5;EGR1;DMRTA2;CEBPZ;ATF3',
+   'late', 'rg', 'YBX1;NEUROD6;ID4;ZBTB18;TCF4;NR2F1;MEF2C;CARHSP1',
+   'early', 'neuron', 'TCF4;NR2F1;NFIX;BCL11A;ZNF706;THYN1;NEUROG1;CNBP;SUB1;PAX6;HMGB2;CAMTA1;NEUROG2;HMGB3;DDIT3',
+   'mid', 'neuron', 'ZBTB18;TSC22D1;TCF4;SNAI2;SATB2;NR2F1;NME2;NFIX;MEF2C;LHX2;KLF6;ID2;FOXP1;FOXG1;BHLHE22;BCL11A;ZNF711;YBX1;PBX1;MYT1L;BCL11B;BACH2',
+   'late', 'neuron', 'ZNF706;YBX1;SUB1;NFIA;MYT1L;MEIS2;KLF6;ZBTB18;TCF4;SOX11;SON;NME2;MEF2C;FOS;EGR1;BCL11A')
+
+groups_plot %<>% unite(group, cell_type, stage, remove = FALSE)
+
+# Has gw19_2 neurons! (check)
+ncx_full@meta.data %>% dfilter(cell_type == 'neuron') %>% count(individual) 
+
+seurat_object <- ncx_full %>%
+  # @medatata has rownames
+  SetIdent(value = as.character('celltype_stage')) # ex: celltype_stage, cell_type
+
+
+# Test with 1 group of genes -----------------------------------------------------------------
+
+group = 'rg_pfc_early'
+
+dotplot <- makeDotPlot(seurat_object = seurat_object, 
+                       mode = 'genes_by_area',
+                       idents_use = 'rg_early',
+                       group = 'rg_early',
+                       area = 'pfc; v1', 
+                       genes_list = groups_plot$genes_pfc_v1[1] %>% str_split(';') %>% unlist,
+                              group_by = 'area',
+                       split_by = 'cell_type',
+                              scale = FALSE,
+                              title = 'rg_early',
+                              color_scale = 'red_yellow_blue', 
+                              scale_by = 'gene')      
+
+
+# 2020-12-21 -- Whohoo! Managed to reconstruct these dot plots now with clustering.
+# TOMORROW: Make all 6 groups (e, m, l) x (rg, neu) using pmap and the function above.
+
+
+# 2020-12-22
+# pmap with all groups in groups_plot ------------------------------------------------------------
+
+seurat_object <- ncx_full %>%
+  # @medatata has rownames
+  SetIdent(value = ('celltype_stage')) # ex: celltype_stage, cell_type
+
+groups_plot$dotplots <- groups_plot %>% pmap(~ makeDotPlot(seurat_object = seurat_object,
+                                   idents_use = ..1,
+                                   mode = 'genes_by_area',
+                                   group_by = 'area',
+                                   group = ..1,
+                                   area == 'pfc & v1',
+                                   genes_list = str_split(..4, ';') %>% unlist,
+                                   # Why do the characters in ..4 (genes, ; separated) need to be unlisted?
+                                   split_by = 'groups',
+                                   scale = FALSE,
+                                   title = ..1,
+                                   color_scale = 'red_yellow_blue',
+                                   scale_by = 'gene'
+                                   ))
+                                   
+groups_plot %>% pmap(~ ggsave(plot = ..5,
+                              filename = paste0('../out/plots/dotplots_pfc_v1_clustered/dotplots_pfc_v1_', ..1, '.pdf'), # group name is ..2
+                              device = 'pdf',
+                              width = length(..4 %>% str_split(';') %>% unlist)/2.75, height = 3.5, units = 'in'))   
+
+groups_plot[,1:4]
+```
+
+## PFC / V1 genes by age
+
+| *`2020-12-11`*
+| shown in PFC and V1 only, paired columns.
+
+```{r 2020-12-11}
+
 groups_plot <- tfs$MAST_wilcox_by_celltype_area %>% 
                 dplyr::filter(group %>% str_detect('rg_.*pfc|rg_.*v1'))
 
-seurat_object %<>% SetIdent(value = 'cell_type') #celltype_stage | celltype_region | celltype
+seurat_object %<>% SetIdent(value = 'cell_type') 
+# celltype_stage | celltype_region | celltype
 print(seurat_object %>% Idents %>% unname %>% tabyl)
 
 group = 'rg_pfc'
@@ -164,20 +258,22 @@ ggsave(plot = dotplot , filename = paste0('../out/plots/dotplot_ages_rg_pfc_v1.p
 ls()
 ```
 
+### function: `dotPlots_StagePanel`
+
+-   Calls: `makeDotPlot.R`
+
 ```{r}
-makeTFDotPlots <- function(seurat_object, group, ident_col, cell_type, area, stage, genes_plot) {
+dotPlots_stagePanel <- function(seurat_object,
+                                       genes_plot,
+                                       group, 
+                                       ident_col, 
+                                       cell_type, area, stage) {
       
       message('\n GROUP: ', group, '\n')
-     # Make main plot -----------------------------------------------------------------------
+  
+      # Main plot -------------------------------------------------------------
        message('Idents:\n')
        print(seurat_object %>% Idents %>% unname %>% tabyl)
-
-      #  cell_type <- ..2
-      #  area <- ..3
-      #  my_stage <- ..4
-      #  genes_plot <- ..5
-
-      # (celltype_stage = paste(cell_type, my_stage, sep = "_"))
        
        dotplot <- makeDotPlot(seurat_object = seurat_object, 
                               group = group,
@@ -190,59 +286,52 @@ makeTFDotPlots <- function(seurat_object, group, ident_col, cell_type, area, sta
                               title = group,
                               color_scale = 'red_yellow_blue')
   
-             # Make individualplots -------------------------------------------------------------
+             # Individual plots -------------------------------------------------------------
                  
-                  #   message('// Make individual dot plots //')
+                if(plot_individuals == TRUE) {
+                    message('// Make individual dot plots //')
                   
-                  #   message('Stage: ')
-                  #   print(paste(area, my_stage, sep = "_"))
-                  #   
-                  #   message('Individuals: \n')
-                  #   # print(indivs_by_stage %>% dplyr::filter(stage == my_stage))
-                  #   print(individuals <- indivs_by_stage %>% dplyr::filter(stage == my_stage) %>% 
-                  #           pull(individual) %>% as.character)
-                  #   
-                  #   message('Set new idents')
-                  #   Idents(ncx_full) <- ncx_full@meta.data %>% str_glue_data('{cell_type}_{individual}')
+                    message('Stage: ')
+                    print(paste(area, my_stage, sep = "_"))
+                    
+                    message('Individuals: \n')
+                    # print(indivs_by_stage %>% dplyr::filter(stage == my_stage))
+                    print(individuals <- indivs_by_stage %>% dplyr::filter(stage == my_stage) %>% 
+                      pull(individual) %>% as.character)
                   
-                  #   dotplots_indiv <- map(individuals, .f = function(x) {
-                  #                         message('Individual:')
-                  #                         print(x)
-                  #                         # function(individual = .x) {
-                  #                        message('ident_use:')
-                  #                        print(celltype_indiv <- paste(cell_type, x, sep = "_"))
+                    message('Set new idents')
+                      Idents(ncx_full) <- ncx_full@meta.data %>% 
+                        str_glue_data('{cell_type}_{individual}')
                   
-                  #                        makeDotPlot(seurat_object = ncx_full, 
-                  #                                    group = group,
-                  #                                    idents_use = celltype_indiv, 
-                  #                                    area = area, 
-                  #                                    genes_list = genes_plot,
-                  #                                    split_by = 'area',
-                  #                                    group_by = 'individual',
-                  #                                    scale = FALSE,
-                  #                                    title = x)
-                  #                     })
-                  #               
-                  #     dotplots_indiv %<>% 
-                  #       lapply(function(x) 
-                  #              x + ggtitle('') + theme(legend.position = 'none')
-                  #              )
-                
-                  # \END Make individual plots -----------------------------------------------------
-                                   
-          # plots <- (list(main = dotplot, indiv = dotplots_indiv))
-           
-          #  p_indiv <- wrap_plots(dotplots_indiv) 
-          #  patchwork <- (dotplot/p_indiv) + plot_layout(nrow = 2)
-          #  
-          #  
-          #  ggsave(plot = patchwork, filename = paste0('../out/plots/dotplot_', group, '.pdf'), device = 'pdf',
-          #         width = 20, height = 15)
-          # 
+                  # Apply (map) makeDotPlot to each individual
+                      
+                      dotplots_indiv <- map(individuals, .f = function(x) {
+                        
+                        message('Individual:'); cat (x)
+                        message('ident_use:'); cat(celltype_indiv <- paste(cell_type, x, sep = "_"))
+                  
+                        makeDotPlot(seurat_object = ncx_full, 
+                                              group = group,
+                                              idents_use = celltype_indiv, 
+                                              area = area, 
+                                              genes_list = genes_plot,
+                                              split_by = 'area',
+                                              group_by = 'individual',
+                                              scale = FALSE,
+                                              title = x)
+                        })
+                  
+                     dotplots_indiv %<>% 
+                           lapply(function(x) 
+                                    x + ggtitle('') + theme(legend.position = 'none'))
+                }
        
-         return(dotplot)
-         # message('\n * Printing ! * \n')
-         # printDotPlots(dotplot)
+          plots <- (list(main = dotplot, indiv = dotplots_indiv))
+                
+             # END Make individual plots -----------------------------------------------------
+              # Run printDotplots_main_individual from here.
+       
+         printDotPlots(plot)
           
           }
 
@@ -253,9 +342,35 @@ ncx_full@meta.data %>% dfilter(is.na(cell_type)) %>% count(individual) %>% adorn
 # gw16 NA's due to non-excitatory levels.
 ```
 
-# Print main plot + individual plots in a single page
+## Older way
 
-## 3-individual panels (early + mid)
+```{r}
+markers_plot <- tfs_by_group_MAST_wilcox
+
+gene_list <- markers_plot %>% filter(cell_type == 'rg', 
+                                     area == 'pfc', stage == 'early')
+
+seurat_object <- ncx_full %>% subset(subset = (cell_type == 'rg' & 
+                                                 stage == 'early'))
+
+dotplot <- makeDotPlot(seurat_object = seurat_object, 
+                       cell_type = 'rg', area = 'pfc', 
+                       genes_list = gene_list$genes, scale = TRUE)
+
+# Fix axis order ffs
+dotplot[[1]]$data %<>% 
+  separate(id, into = c('cell_type', 'id')) %>% 
+  mutate(features.plot = as.factor(as.character(features.plot)),
+         id = factor(id, levels = levels(ncx_full@meta.data$area))
+  )
+```
+
+## function `printDotPlots`
+
+Print main plot + individual plots in a single page.
+
+3-individual panels (early + mid)
+
 ```{r 2020-12-07}
 printDotPlots <- function(x, n_rows_indiv = 1, n_areas = 6) {
   
@@ -307,23 +422,28 @@ printDotPlots <- function(x, n_rows_indiv = 1, n_areas = 6) {
 }
 ```
 
+```{r}
+dotplots \<- list(dotplot =
+dotplots[[1]]$dotplot, dotplots_indiv = dotplots[[1]]$dotplots_indiv[1:3])
 
+names(dotplots\$dotplots_indiv) \<- c('p1', 'p2', 'p3')
 
-dotplots <- list(dotplot = dotplots[[1]]$dotplot, dotplots_indiv = dotplots[[1]]$dotplots_indiv[1:3])
+dotplots[[1]] %\>% wrap_plots(layout = A\#\#, BC)
+```
 
-names(dotplots$dotplots_indiv) <- c('p1', 'p2', 'p3')
+3 plots in early panels (1 main + 3 indiv) 3 plots in mid panels (1 main + 3 indiv) 7 plots in early
+panels (1 main + 7 indiv)
 
-dotplots[[1]] %>% wrap_plots(layout = A##, BC)
-                             
-3 plots in early panels (1 main + 3 indiv)
-3 plots in mid panels (1 main + 3 indiv)
-7 plots in early panels (1 main + 7 indiv)
+Default figure width = 7in, height = 5in}
 
-# Default figure width = 7in, height = 5in}
+----------------------------------------------------------------------------------------------------
 
+# Other stuff
 
-2020-12-03
-Check why ncx_full doesn't have neurons.
+[2020-12-03]{.date}
+
+### Check why `ncx_full` doesn't have neurons.
+
 ```{r}
 ncx_exn <- read_rds(file.path(data.dir, 'exn_lineage/neocortex_exn_lineage_271k.rds'))
 sms('ncx_exn read')
@@ -336,59 +456,8 @@ ncx <- load('cfc4b2_neocortex_v3.RData')
 ncx_exn@meta.data[1:10, ] %>% str_split(.$cell.name) count(cell_type)
 ```
 
+‣ [2020-12-04]{.date} Cell types in `ncx_full` and `ncx_exn gw19_2`
 
-My own dotplots - moved this to `make_TFDotPlots.R`
-```{r}
-# Scale average expression values by individual.
-x <- dotplot[[1]]$data %>% 
-  separate(id, c('individual', 'area'), remove = FALSE) %>% 
-  group_by(features.plot, individual) %>%
-  mutate(scaled_exp = scale(avg.exp, center = TRUE)) %>%
-  ungroup
-
-
-x %<>% mutate(area = factor(area, levels = levels(ncx_full@meta.data$area))) %>%
-  arrange(individual, area) %>% 
-  mutate(id = as_factor(as.character(id)),
-         features.plot = as.factor(as.character(features.plot)))
-         
-dotplot <- ggplot(x) + ggtitle(paste(cell_type, area, stage))
-  
-  geom_point(aes(x = features.plot, y = id, 
-                           color = scaled_exp, size = pct.exp)) +
-  scale_colour_gradientn(colours = rev(heatmap.colors),
-                       # TODO Maybe keep high yellow, low blue gradient.
-        #values = c(0, 0.3, 1),
-        # breaks = c(0, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9),
-        # limits = c(0.01, 0.9),
-        na.value = "white") +
-
-   theme_cowplot() +
-  theme(axis.text.x = element_text(size = 6, angle = 45, vjust = 1, hjust = 1),
-              axis.title.x = element_blank(),
-              legend.position = "bottom") 
-
-dotplot %>% ggplotly()
-
-# No neurons in gw19_2 ???
-ncx_full@meta.data %>% count(cell_type, individual) %>% dplyr::filter(individual == 'gw19_2')
-
-load('../../../data/gw19_2.RData')
-gw19_2_annot <- read_tsv('../../../data/gw19_2_clusteridentity_wholebrain_annotated.txt')
-gw19_2_neurons <- gw19_2_annot %>% dplyr::filter(cell_type == 'Excitatory Neuron') 
-
-ncx_full@meta.data %<>% set_rownames(.$cell_name)
-
-ncx_full@meta.data %>% dplyr::filter(individual == 'gw19_2' & cell_type == 'neuron')
-ncx_full@meta.data %>% dplyr::filter(cell_name %in% gw19_2_neurons$cell_name) %>% count(cell_type)
-
-# FIX THIS
-# look in ncx_exn
-sms('Done')
-```
-
-‣ 2020-12-04
-# Cell types in ncx_full and ncx_exn gw19_2
 ```{r}
 ncx_full@meta.data %>% dplyr::filter(cell_name %>% str_detect('gw19_2')) %>% count(cell_type)
 #   cell_type    n
@@ -427,11 +496,10 @@ markers_MAST %>% dplyr::filter(p_val_adj <= 0.1 & is_tf == 'TF') %>% count(cell_
 tfs_MAST %>% count(cell_type, area, region)
 ```
 
-
 ```{r}
 ncx_full@meta.data %<>% set_rownames(value = .$cell_name)
 Idents(ncx_full) <- 'cell_type'
-# TODO save this onject
+# TODO save this object
 
 ncx_full@active.ident
 
@@ -441,9 +509,12 @@ ncx_full@meta.data$area
 # THIS NEEDS TO BE SCALED BY EACH INDIVIDUAL.
 ```
 
+----------------------------------------------------------------------------------------------------
 
-# Plots: Trying to understand scaling vs not. 
-Dot plots showing each individual of a stage.
+### Plots: Trying to understand scaling vs not.
+
+| Dot plots showing each individual of a stage.
+
 ```{r}
 dotplot2 <- makeDotPlot(seurat_object = seurat_object, 
                         cell_type = 'rg', area = 'pfc', scale = TRUE,
@@ -451,36 +522,23 @@ dotplot2 <- makeDotPlot(seurat_object = seurat_object,
 
 dotplot2[[1]]$data
 ```
+
 ```{r}
 dotplot2 <- makeDotPlot(seurat_object = seurat_object, 
                         cell_type = 'rg', area = 'pfc', scale = FALSE,
                        genes_list = list(gene_list$early[-1]))
 ```
+
 Not scaled, each gene separately. (own size scale)
+
 ```{r}
 dotplot2 <- makeDotPlot(seurat_object = seurat_object, 
                         cell_type = 'rg', area = 'pfc', scale = TRUE,
                        genes_list = gene_list$early[-1])
 ```
+
 ```{r}
 dotplot2 <- makeDotPlot(seurat_object = seurat_object, 
                         cell_type = 'rg', area = 'pfc', scale = FALSE,
                        genes_list = gene_list$early[-1])
 ```
-
-
-
-
-
-# Actually make plots.
-Combine individuals into stages like before.
-Only show stage relevant to the marker gene.
-Combine wilcox and MAST genes?
-```{r}
-tfs_by_group_MAST_wilcox$genes
-
-
-
-
-```
-

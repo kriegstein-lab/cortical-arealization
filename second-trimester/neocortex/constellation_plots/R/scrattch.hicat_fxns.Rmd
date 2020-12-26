@@ -168,7 +168,7 @@ predict_knn <- function(knn.idx, reference, cl)
 ## 4. `plot_constellation` and helper functions for plot.
 ```{r}
 plot_constellation <- function(knn.cl.df, cl.center.df, out.dir, 
-                                node.label = "cluster_id", exxageration = 2, curved = TRUE, 
+                                node.label = "cluster_label", exxageration = 2, curved = TRUE, 
                                 plot.parts=FALSE, plot.hull = NULL, plot.height=25, plot.width=25, 
                                 node.dodge=FALSE, label.size=2, max_size=10) { 
   
@@ -318,8 +318,9 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
       
   }
   
-  nodes <- nodes[order(nodes$cl_id),]
-  
+    write.csv(nodes, file = file.path(out.dir,paste0(st, "nodes.dodge.csv")))
+    nodes <- nodes[order(nodes$cluster_id),]
+    print(nodes)
   
   
   ## when printing lines to pdf the line width increases slightly. This causes the edge to extend beyond the node. Prevent this by converting from R pixels to points. 

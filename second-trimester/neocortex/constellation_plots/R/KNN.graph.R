@@ -55,7 +55,7 @@ get_knn_graph <- function(rd.dat, cl, cl.df, k=15, knn.outlier.th=2, outlier.fra
 
 
 
-
+# plot_constellation ----------------------------------------------------------
 
 
 #' @param knn.cl.df output of KNN.graph.
@@ -110,7 +110,7 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
   library(ggforce)
   library(dplyr)
 
-  st=format(Sys.time(), "%Y%m%d_%H%M%S_")
+  st = format(Sys.time(), "%Y%m%d_%H%M%S_")
 
   if(!file.exists(out.dir)){
     dir.create(out.dir)
@@ -153,9 +153,9 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
 
   ###==== extract node size/stroke width to replot later without scaling
   g <- ggplot_build(p.nodes)
-  dots <-g[["data"]][[1]] #dataframe with geom_point size, color, coords
+  dots <<- g[["data"]][[1]] #dataframe with geom_point size, color, coords
 
-  nodes <- left_join(cl.center.df, dots, by=c("x","y"))
+  nodes <<- left_join(cl.center.df, dots, by=c("x","y"))
 
 
   ###==== if node.dodge==TRUE new xy coords are calculated for overlapping nodes.
@@ -227,7 +227,9 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
         }
       }
 
-  }
+    }
+  
+  write.csv(nodes, file = file.path(out.dir,paste0(st, "nodes.dodge.csv")))
 
   nodes <- nodes[order(nodes$cluster_id),]
 

@@ -1,5 +1,142 @@
+cheaVenn <- function(region_use_chea,
+                     main.pos = c(0.5, 0.9),
+                     region_use_markers,
+                     df_marker_tfs = tfs$MAST_wilcox_by_group,
+                     df_chea,
+                     find_top_chea = FALSE,
+                     label_print = FALSE,
+                     frac_keep = 0.20,
+                     table_use = 'Integrated--meanRank',
+                     score_threshold) {
+  
+  message('\nCombination:\n')
+  cat(combination <- paste0('ChEA: ', region_use_chea, ' / ', 'RG markers: ' , region_use_markers))
+  
+  # Define which TFs to use from the ChEA results table. -------------------------------------------
+  
+  # a) Find top n TFs -------------------------------------------------------------------
+  
+  df_chea_split <- df_chea %>% dfilter(table == table_use & 
+                                         query_genes %>% str_detect(paste0('neuron_.*_', region_use_chea))) %>% 
+    split(.$query_genes)
+  
+  df_chea_top <- df_chea_split %>% map(~ mutate(.x, score = as.numeric(score)) %>%
+                                         top_frac(n = frac_keep, wt = -score)) %>%
+    rbindlist %>% distinct(tf, .keep_all = TRUE)
+  
+  # b) Keep TFs with score < threshold ----------------------------------------------------------
+  
+  # df_chea <- df_chea %>% mutate(score = as.numeric(score)) %>%
+  #                         dfilter(table == table_use &
+  #                           cell_type == 'neuron' & region == region_use &
+  #                             score <= score_threshold)
+  
+  # # Count how many TFs above score threshold for each stage
+  # tfs_pred_per_stage <- df_chea %>% group_by(query_genes) %>% 
+  #                         summarise(n_distinct(tf))
+  # 
+  tfs_chea <- df_chea_top %>% count(tf) %>% .$tf
+  
+  warning('\nTFs ChEA:\n')
+  cat_n(tfs_chea)
+  
+  # Get RG marker TFs for this area/region ---------------------------------------------------------
+  
+  df_marker_tfs <- df_marker_tfs %>% ungroup %>% 
+    dfilter(cell_type == 'rg' & region == region_use_markers)
+  
+  tfs_markers <- df_marker_tfs %>% unlist(x = .$genes, use.names = FALSE) %>% sort %>% unique
+  
+  # Calculate overlap --------------------------------------------------------
+  
+  compare_list <- lst(tfs_markers, tfs_chea)
+  
+  # VennDiagram
+  
+  # venn_result <- VennDiagram::calculate.overlap(x = lst(tfs_rg_markers, tfs_predicted))
+  venn_result <- get.venn.partitions(x = compare_list)
+  tf_markers_only <- venn_result %>% 
+    dfilter(tfs_markers == TRUE & tfs_chea == FALSE) %>% pull(`..values..`)
+  
+  # venndetail
+  
+  venn_detail <- VennDetail::venndetail(x = compare_list)
+  venn_detail_result <- result(venn_detail)
+  
+  input <- venn_detail@input %>% enframe
+  result <- venn_detail@result %>% group_by(Subset) %>% summarise(genes = list(as.character(Detail)))
+  
+  venn_detail_df <- rbindlist(lst(input, result), idcol = 'type') %>%
+    mutate(n_genes = map_int(value, length)) # value %>% map(length) %>% unlist
+  
+  print(venn_detail_df %>% dfilter(name == 'Shared'))
+
+  n_shared <- venn_detail_df %>% dfilter(name == 'Shared') %>% pull(n_genes)
+  if(nrow( venn_detail_df %>% dfilter(name == 'Shared')) == 0 ){ n_shared <- 0.01 }
+  message('\nn_shared: ')
+  print(n_shared)
+  cat('\nn_shared: ', n_shared)
+
+  venn_detail_df %<>% mutate(pct_shared = round(n_shared / n_genes, 2))
+  
+  #  Make Venn diagram 
+  # a) VennDiagram::venn.diagram
+  
+  # p <- venn.diagram(x = compare_list, force.unique = TRUE, 
+  #                   filename = NULL, main = paste('TFs ', region_use),
+  #                   ) %>% grobTree(name = region_use)
+  #                           # How to make objects from VennDiagram compatible with 
+  #                           # cowplot plot_grid?
+  #                           #https://stackoverflow.com/a/51006231/4463919
+  # 
+  
+  # b) Add item labels (adapted from RAM::venn.group)
+  p_venn <- vennGroup(title = combination,
+                      main.pos = main.pos,
+                      compare_list, 
+                      label = label_print, 
+                      fill = c("orange", "blue"),
+                      cat.pos = c(-1, 1),
+                      cat.dist = c(0.02, 0.02),
+                      cat.cex = 1,
+                      lab.cex = 1, width = 20, height = 20) %>%
+    
+    grobTree(name = combination)
+  
+  # ggsave(plot = p, file.path(dir_dropbox, paste0('venn_tf_', region_use, '.pdf')), 
+  #       width = 5, height = 5)
+  
+  # -------------------------------------------
+  # TF score distribution of selected ChEA TFs 
+  
+  scoreDistribution <- function(df) {
+    
+    p <- df %>% 
+      ggplot(aes(x = score)) +
+      geom_density(aes(fill = query_genes, colour = query_genes), alpha = 0.3) +
+      geom_density(alpha = 0.2, colour = 'grey20', linetype = 'dashed', show.legend = FALSE) +
+      theme_minimal()
+    
+    #  ggsave(plot = p, 
+    #     filename = file.path(dir_dropbox, paste0('tf_score_distribution_', region_use, '.pdf')), 
+    #     width = 7, height = 5)  
+  }
+  
+  p_scores <- df_chea_top %>% scoreDistribution
+  
+  return(lst(venn_detail_df, compare_list, venn_result, venn_detail, venn_detail_result, 
+             plots = lst(p_venn, p_scores)))
+  
+}
+
+# . . . . . . . . . . .
+
+
+
 vennGroup <- function (vectors, 
                        title,
+                       main.pos,
+                       main.cex = 1,
                        cat.cex = 1.5, cex = 1, 
                        cat.pos = NULL, cat.dist = NULL, 
                        label = TRUE, lab.cex = 1, lab.col = "black", 
@@ -58,13 +195,19 @@ vennGroup <- function (vectors,
   
   if (!is.null(cat.pos) && !is.null(cat.dist)) {
     
-    v <- VennDiagram::venn.diagram(main = title,
-                                   x = vectors, 
-                                   fill = fill, 
-                                   main.fontfamily = 'sans',
-                                   fontfamily = rep('sans', 3),
+    v <- VennDiagram::venn.diagram(x = vectors, 
                                    force.unique = TRUE, 
+                                   ext.text = FALSE,
+                                   fill = fill, 
                                    alpha = alpha, 
+                                   
+                                   main = title,
+                                   main.pos = main.pos,
+                                   main.fontfamily = 'serif',
+                                   main.cex = main.cex,
+                                   fontfamily = rep('sans', 3),
+                                   cat.fontfamily = rep('sans', 2),
+
                                    cat.dist = cat.dist, cat.pos = cat.pos, 
                                    cat.cex = cat.cex, cex = cex, 
                                    filename = NULL)
