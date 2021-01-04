@@ -4,15 +4,36 @@ date: 2010-11-02
 output: html_notebook
 ---
 
-From @sankey_plots.Rmd
-{r 2020-10-21_normalizePairCounts}
+2020-12-26
+
+Neuron early -\> neuron mid -\> neuron late
+
+```{r fig.width=10}
+sankey_counts_neuron_e2m <- sankey_counts %>% dfilter(item1 %>% str_detect('neuron_.*_early') & 
+                                                        item2 %>% str_detect('neuron_.*_mid'))
+
+make_gvisSankey(chart_id = 'neuron_early_to_mid', gvis_df_x = sankey_counts_neuron_e2m)
+
+sankey_counts_neuron_m2l <- sankey_counts %>% dfilter(item1 %>% str_detect('neuron_.*_mid') & 
+                                                        item2 %>% str_detect('neuron_.*_late'))
+
+make_gvisSankey(chart_id = 'neuron_mid_to_late', gvis_df_x = sankey_counts_neuron_m2l)
+
+# TODO [HERE] 2020-12-26 @ 19:07 Need to reorder factors so that regions are plotted correctly.
+```
+
+Resulting plot:
+
+![](images/sankey_neuron_early_to_mid.png){width="428"}
+
+![](images/sankey_neuron_mid_to_late.png){width="431"}
+
+From @sankey_plots.Rmd `{r 2020-10-21_normalizePairCounts}`
 
 ```{r}
-p_load(tidyverse)
-
 sankey_counts <- read_rds("../out_intermediate/sankey_markers_pairs_exnLineage.rds")
 
-load("../../../../area_specific_markers/sankey/R/2020-10-26_sankey_plots.RData")
+load("sankey_plots_workspaceImage.RData")
 ```
 
 ```{r}
@@ -20,54 +41,63 @@ colors.area
 ```
 
 Split `givis.df` into stages.
+
 ```{r split_givsdf_stages}
 
 stages <- levels(gvis.df$df[[1]]$stage.source)
 # early #mid #late
- 
-
-gvis.df_split_stage <- map2(.x = gvis.df$df$df,
-                            .y = gvis.df$df$comparison,
-                             .f = function(df = .x, comparison = .y, stage = stages) {
+gvis.df %<>% rename(comparison = 'item1_item2')
+gvis.df_split_stage <- map2(.x = gvis.df$df,
+                            .y = gvis.df$comparison,
+                            .f = function(df = .x, comparison = .y, stage = stages) {
                                       map(.x = stage,
-                                           .f = ~filter(df,
+                                          .f = ~ dfilter(df,
                                                         stage.source == .x & stage.target == .x)
-                                              ) %>% tibble(comparison = comparison, stage = stages, split_df = .)
-                               }
-                           )                 
-                                                  
-                               
-                  
+                                          ) %>% tibble(comparison = comparison, 
+                                                           stage = stages, 
+                                                           split_df = .)
+                               })                 
+     
 gvis.df_split_stage %<>% purrr::reduce(rbind)
 ```
 
 ```{r}
-library(pacman)
-p_load(magrittr)
 p_load(googleVis)
 p_load(glue)
 
-getwd()
 path <- "~/cse-phd/second-trimester/neocortex/markers_area_celltype/sankey_plots/out/split_by_stage/sankey_"
+
+# - comparison
+#- stage
+# - df 
+
+# # A tibble: 9 x 3
+#   comparison    stage split_df          
+#   <chr>         <chr> <list>            
+# 1 rg_to_neuron  early <tibble [16 × 13]>
+# 2 rg_to_neuron  mid   <tibble [16 × 13]>
+# 3 rg_to_neuron  late  <tibble [16 × 13]>
+# 4 rg_to_ipc     early <tibble [16 × 13]>
+# 5 rg_to_ipc     mid   <tibble [16 × 13]>
+# 6 rg_to_ipc     late  <tibble [12 × 13]>
+# 7 ipc_to_neuron early <tibble [16 × 13]>
+# 8 ipc_to_neuron mid   <tibble [16 × 13]>
+# 9 ipc_to_neuron late  <tibble [11 × 13]>
 
 sankey_inter_celltype_split_stage <- pmap(gvis.df_split_stage,
                                           .f = ~ make_gvisSankey(chart_id = paste(..1, ..2, sep = "_"), 
                                                                  gvis_df_x = ungroup(..3)
-                                                                 )
-)
+                                                                 ))
 
-gvis.df_split_stage$sankey_plot <- sankey_inter_celltype_split_stage %>% map(~.[[4]])
+# gvis.df_split_stage$sankey_plot <- sankey_inter_celltype_split_stage %>% map(~ .[[4]])
 
 
-sankey_inter_celltype_split_stage[[1]][[1]] %>% purrr::flatten() %>% map() map(~ .$chart_id[1]) %>% print(tag = "chart", file = glue(path, chart_id, ".html"))
-  
-  
-  glue(path, chart_id, ".html")
+# sankey_inter_celltype_split_stage[[1]][[1]] %>% 
+# purrr::flatten() %>% map() map(~ .$chart_id[1]) %>% 
+# print(tag = "chart", file = glue(path, chart_id, ".html"))
   
 sankey_inter_celltype_split_stage %>% map_depth(~ print(.$chart_id[[4]], tag = "chart",
                                                         file = glue(path, chart_id, ".html"),
                                                   ), 
                                                 .depth = 2)
 ```
-
-

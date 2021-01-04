@@ -45,10 +45,13 @@ rmarkdown::render(input = "./buildConstellation.Rmd",
                                 n.pcs = 20,
                                 run.knn = FALSE,
                                 k = 15,
-                                out.dir = '../out'
+                                out.dir = '../out',
+                                frac.th = 0.05
                                 # cl = x$cl,
                                 # cl.numeric = x$cl_numeric)
 ))
+
+write_tsv(knn.cl$knn.cl.df, path = '../out/20201223_constellation_neocortex_celltypes_by_area_knn.cl.df_.tsv')
 
 2020-12-22 NEXT: Make own cl.numeric for this plot and pass to buildConstellation as parameter.
 done - try running knn.cl.dat or whatever the next block is (not run knn again)
