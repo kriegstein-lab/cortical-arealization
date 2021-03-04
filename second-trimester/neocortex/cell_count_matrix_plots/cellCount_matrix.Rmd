@@ -1,0 +1,85 @@
+# Matrix: Individual/Area cell counts
+
+```{r}
+count(cells.cl.df, Individual, Area) %>% 
+  pivot_wider(names_from = Area, values_from = n)
+
+x <- count(cells.cl.df, Individual, Area)
+x$Area <- factor(x$Area, levels = c("PFC", "motor", "somatosensory", "parietal", "temporal", "V1"))
+```
+
+Neurons only:
+
+```{r}
+x <- cells.cl.df %>%
+  filter(clade == "neuron") %>%
+        count(Individual, Area)
+
+x$Area <- factor(x$Area, levels = c("PFC", "motor", "somatosensory", "parietal", "temporal", "V1"))
+
+(p.neurons <- plotCellCounts(counts.matrix = x, title = "Neurons"))
+# ggsave(filename = "../out/countsPlot_neurons.pdf", plot = p.neurons, width = 7, height = 6, units = "in")
+```
+
+Dividing cells:
+
+```{r}
+x <- cells.cl.df %>%
+  filter(clade %in% c("rg", "dividing")) %>%
+        count(Individual, Area)
+
+x$Area <- factor(x$Area, levels = c("PFC", "motor", "somatosensory", "parietal", "temporal", "V1")
+                 )
+
+(p.div <- plotCellCounts(counts.matrix = x, title = "Dividing cells"))
+# ggsave(filename = "../out/countsPlot_dividing.pdf", width = 7, height = 6, units = "in")
+```
+
+All cells:
+
+```{r}
+x <- cells.cl.df %>%
+        count(Individual, Area)
+
+x$Area <- factor(x$Area, levels = c("PFC", "motor", "somatosensory", "parietal", "temporal", "V1")
+                 )
+
+(p.all <- plotCellCounts(counts.matrix = x, title = "All cells"))
+# ggsave(filename = "../out/countsPlot_allCells.pdf", width = 7, height = 6, units = "in" )
+```
+
+```{r}
+plot_grid(p.all, p.div, p.neurons, nrow = 3, labels = c("", "", ""),
+          rel_heights = c(1, 1, 1))
+
+ggsave(filename = "../out/countsPlots.pdf", width = 7, height = 16, units = "in" )
+```
+
+## function: plotCellCounts
+
+```{r}
+
+plotCellCounts <- function(counts.matrix, title) {
+  
+  p <- ggplot(counts.matrix) + 
+  geom_point(aes(x = Area, y = Individual, size = n, color = Area)) + 
+  geom_label(aes(x = Area, y = Individual, size = n, label = round(n/1000, 1), fill = Area), 
+             nudge_x = 0, nudge_y = 0, color = "white", label.r = unit(0.3, "lines")) +
+  theme_minimal() + 
+  scale_size_area(max_size = 8) +
+  # scale_radius(range = c(3,6)) +
+  scale_color_viridis_d(option = "C", end = 0.85) + 
+  scale_fill_viridis_d(option = "C", end = 0.85) + 
+  guides(color = FALSE,
+         size = FALSE,
+         fill = FALSE) +
+  theme(axis.text.x = element_text(angle = 35),
+        text = element_text(size=12),
+          axis.title.x = element_blank()
+        ) +
+    ggtitle(label = title,
+            subtitle = "cells per sample / area (x 1K)")
+  
+  return(p)
+}
+```

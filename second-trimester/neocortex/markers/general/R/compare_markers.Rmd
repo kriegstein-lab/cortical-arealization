@@ -25,6 +25,24 @@ markers_MAST <- read_tsv("../out/area_markers_by_individual_and_celltype_MAST_20
 # p-value goes from 0-1 (not filtered.)
 ```
 
+# Combine MAST and wilcox genes into a single table
+# - Discard duplicate genes per indiv-celltype-area group.
+```{r}
+markers_MAST_wilcox_p0.1 <- readRDS("neocortex/markers/general/out/MAST_wilcox_compare/markers_MAST_wilcox_p0.1.rds")
+
+markers_MAST_wilcox_p0.1$markers_MAST %<>% rename(enrichment_ratio = 'enrichment.ratio')
+markers_MAST_wilcox_p0.1$markers_ab %<>% rename(enrichment_ratio = 'gene.ratio')
+
+markers_MAST_wilcox_p0.1$combined <- markers_MAST_wilcox_p0.1[1:2] %>% 
+  combine() %>%
+  distinct(gene, individual, cell_type, area, .keep_all = TRUE)
+
+# Export to file.
+markers_MAST_wilcox_p0.1$combined %>% 
+  select(-file, -diff.pct, -stage_area, -celltype_stage, -stage_region, -celltype_region) %>% 
+  write_tsv('second-trimester/neocortex/markers/general/out/findMarkers_celltype_area_stage_2c9a8.tsv')
+```
+
 Expand metadata and filter cells to keep excitatory lineage only.
 ```{r}
 source('../../../R_general/expandMetadata.R')

@@ -3,12 +3,11 @@ title: "Constellation Plots: Neocortex, 2nd Trimester"
 subtitle: "All Samples, All cell types"
 ---
 
-### Functions from scrattch.hicat
---------------------------------------------------------------------------------
+## \#\#\# Functions from scrattch.hicat
 
 ## 1. `get_cl_df`: builds a dataframe from a named factor `cl`
-whose values/levels = cluster labels and names = cell indexes.
-From annotate.R
+
+whose values/levels = cluster labels and names = cell indexes. From annotate.R
 
 ```{r}
 get_cl_df <- function(cl) {
@@ -30,7 +29,8 @@ get_cl_df <- function(cl) {
 }
 ```
 
-## 2.  In `reduceDimension_plot.R`
+## 2. In `reduceDimension_plot.R`
+
 ```{r}
 
 get_RD_cl_center <- function(rd.dat = rd.dat, cl) {
@@ -56,6 +56,7 @@ get_RD_cl_center <- function(rd.dat = rd.dat, cl) {
 ```
 
 ## 3. `get_knn_graph`
+
 ```{r}
 #' @param rd.dat Reduced dimensions for cells. Used to determine which clusters are close to each other. (description copied from merge_cl.R)
 #' @param cl A vector of cluster membership with cell index as names, and cluster_id as values. (description copied from merge_cl.R)
@@ -166,6 +167,7 @@ predict_knn <- function(knn.idx, reference, cl)
 ```
 
 ## 4. `plot_constellation` and helper functions for plot.
+
 ```{r}
 plot_constellation <- function(knn.cl.df, cl.center.df, out.dir, 
                                 node.label = "cluster_label", exxageration = 2, curved = TRUE, 
@@ -766,4 +768,3 @@ angle <- function(x, y) {
     atan2(y[2] - y[1], x[2] - x[1])
         }
 ```
-

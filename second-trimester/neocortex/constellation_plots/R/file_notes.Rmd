@@ -8,8 +8,6 @@
         - within each individual.
      See `sankey_plots.Rmd`
 
-
-
 # Seurat object subsets:
 
 ```{r}
