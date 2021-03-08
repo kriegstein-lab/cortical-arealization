@@ -38,9 +38,13 @@ markers_MAST_wilcox_p0.1$combined <- markers_MAST_wilcox_p0.1[1:2] %>%
   distinct(gene, individual, cell_type, area, .keep_all = TRUE)
 
 # Export to file.
+markers_MAST_wilcox_p0.1$combined %<>% 
+  select(-file, -diff.pct, -stage_area, -celltype_stage, -stage_region, -celltype_region) %>%
+  arrange(individual, gene) %>%
+  select(-p_val, gene, individual, area, region, stage, cell_type, everything())
+
 markers_MAST_wilcox_p0.1$combined %>% 
-  select(-file, -diff.pct, -stage_area, -celltype_stage, -stage_region, -celltype_region) %>% 
-  write_tsv('second-trimester/neocortex/markers/general/out/findMarkers_celltype_area_stage_2c9a8.tsv')
+  write_tsv('../out/findMarkers_celltype_area_stage_2c9a8.tsv')
 ```
 
 Expand metadata and filter cells to keep excitatory lineage only.

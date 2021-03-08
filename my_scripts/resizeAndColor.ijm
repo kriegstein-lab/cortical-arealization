@@ -1,5 +1,6 @@
 //srcdir = getDirectory("Choose a Directory...");
-srcdir = "/Users/carmensandoval/Fgf8_Organoids/02_CoupTF1_Sox2/02_34_H1_wk10_Fgf850-8wk/";
+srcdir = "02_CoupTF1_Sox2/02_34_H1_wk10_Fgf850-8wk/";
+dstdir = "Dropbox/fgf8_organoids/inbox_processed/" + git_sha + "/";
 
 git_candidate_sha = File.openAsString("/Users/carmensandoval/Documents/GitHub/permanentheaddamagePHD/.git/HEAD");
 // git_head_ref can contain either a git sha, or point to a file with the sha
@@ -16,7 +17,9 @@ if (indexOf(git_candidate_sha, "/") != -1) {
 }
 // Truncate to get first 7 digits of the sha
 git_sha = substring(git_candidate_sha, 0, 7);
-dstdir = "/Users/carmensandoval/Box/KriegsteinLab/imaging/Fgf8_Organoids/processed/" + git_sha + "/";
+
+
+
 if (File.exists(dstdir)) {
   exit("Directory already exists!");
 }
@@ -28,7 +31,7 @@ processDirectory(srcdir, dstdir);
 function processDirectory(srcdir, dstdir) {
   filelist = getFileList(srcdir);
 
-  for (i = 0; i< filelist.length; i++) {
+  for (i = 0; i < filelist.length; i++) {
     src_filename = srcdir + filelist[i];
     dst_filename = dstdir + filelist[i];
     if (File.isDirectory(src_filename)) {
@@ -53,6 +56,8 @@ function processDirectory(srcdir, dstdir) {
   }
 }
 
+// Functions
+
 function openAndScale(filename) {
   open(filename);
   run("Scale...", "x=0.6 y=0.6 width="+getWidth() * 0.6+" height="+getHeight() * 0.6+"\
@@ -64,8 +69,9 @@ function getBaseFilename(filename) {
 }
 
 function saveTif(dst_filename) {
+  getDateAndTime(year, month, day);
   baseFileName = getBaseFilename(dst_filename);
-  saveAs("TIFF", baseFileName + "_scaled60");
+  saveAs("TIFF", baseFileName + "_scaled60" + year + month + day);
 }
 
 function savePng(dst_filename) {
