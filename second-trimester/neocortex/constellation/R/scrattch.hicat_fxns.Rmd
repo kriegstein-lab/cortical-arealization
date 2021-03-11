@@ -171,10 +171,17 @@ predict_knn <- function(knn.idx, reference, cl)
 ## 4. `plot_constellation` and helper functions for plot.
 
 ```{r}
-plot_constellation <- function(knn.cl.df, cl.center.df, out.dir, 
-                                node.label = "cluster_label", exxageration = 2, curved = TRUE, 
-                                plot.parts=FALSE, plot.hull = NULL, plot.height=25, plot.width=25, 
-                                node.dodge=FALSE, label.size=2, max_size=10
+plot_constellation <- function(knn.cl.df, 
+                               cl.center.df, 
+                               out.dir, 
+                               node.label = node_label, 
+                               exxageration = 2, 
+                               curved = TRUE, 
+                               plot.parts = FALSE, 
+                               plot.hull = NULL, 
+                               plot.height = 50, plot.width = 25, 
+                               node.dodge = TRUE, dodge_value = 3, 
+                               label.size = 2, max_size = 20
                                 # n.pcs = n.pcs, k = k, frac.th = frac.th
                                ) { 
   
@@ -202,7 +209,7 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
   library(ggforce)
   library(dplyr)
   
-  st <- format(Sys.time(), "%Y%m%d_%H%M_")
+  st <- parent.frame$st
   
   if(!file.exists(out.dir)){
     dir.create(out.dir)
@@ -226,8 +233,8 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
   p.nodes <-  ggplot() +     
                   geom_point(data = cl.center.df,
                              shape=19, 
-                             aes(x=x, 
-                                 y=y, 
+                             aes(x = x, 
+                                 y = y, 
                                  size = cluster_size, 
                                  color = alpha(cluster_color, 0.8))) +
                   scale_size_area(trans="sqrt",
@@ -276,11 +283,11 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
   for (d1 in 1:(nrow(nodes)-1)) {
     j <- d1+1
       for (d2 in j:nrow(nodes)) {
-      print(paste(d1,d2))
+      # print(paste(d1,d2)) Do not print node pair counts.
       
         distSq <- sqrt(((nodes$x[d1]-nodes$x[d2])*(nodes$x[d1]-nodes$x[d2]))+((nodes$y[d1]-nodes$y[d2])*(nodes$y[d1]-nodes$y[d2])))
       
-        radSumSq <- (nodes$r[d1] *1.25)+ (nodes$r[d2]*1.25) # overlapping radius + a little bit extra
+        radSumSq <- (nodes$r[d1] * dodge_value)+ (nodes$r[d2]* dodge_value) # overlapping radius + a little bit extra
        
         if (distSq < radSumSq) {
           print(paste(d1,d2))
@@ -302,11 +309,11 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
       for (d1 in 1:(nrow(nodes)-1)) {
         j <- d1+1
         for (d2 in j:nrow(nodes)) {
-          print(paste(d1,d2))
+          # print(paste(d1,d2)) \\ Do not print node pair counts.
           
           distSq <- sqrt(((nodes$x[d1]-nodes$x[d2])*(nodes$x[d1]-nodes$x[d2]))+((nodes$y[d1]-nodes$y[d2])*(nodes$y[d1]-nodes$y[d2])))
           
-          radSumSq <- (nodes$r[d1] *1.25)+ (nodes$r[d2]*1.25) # overlapping radius + a little bit extra
+          radSumSq <- (nodes$r[d1] * dodge_value)+ (nodes$r[d2]* dodge_value) # overlapping radius + a little bit extra
           
           if (distSq < radSumSq) {
             print(paste(d1,d2))
@@ -359,7 +366,7 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
   knn.cl.d$cl.from <- as.numeric(as.character(knn.cl.d$cl.from))
   knn.cl.d$cl.to <- as.numeric(as.character(knn.cl.d$cl.to))
   
-  knn.cl.d <- left_join(knn.cl.d, select(nodes, cl, node.width), by = c("cl.from" = "cl"))
+  knn.cl.d <- left_join(knn.cl.d, dplyr::select(nodes, cl, node.width), by = c("cl.from" = "cl"))
   colnames(knn.cl.d)[colnames(knn.cl.d)=="node.width"]<- "node.pt.from"
   knn.cl.d$node.pt.to <- ""
   knn.cl.d$Freq.to <- ""
@@ -404,10 +411,10 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
   
   ###==== create line segments
   
-  line.segments <- knn.cl.lines %>% select(cl.from, cl.to)
+  line.segments <- knn.cl.lines %>% dplyr::select(cl.from, cl.to)
   nodes$cl <- as.numeric((as.character(nodes$cl)))
-  line.segments <- left_join(line.segments, select(nodes, x, y, cl), by = c("cl.from" = "cl"))
-  line.segments <- left_join(line.segments, select(nodes, x, y, cl), by = c("cl.to" = "cl"))
+  line.segments <- left_join(line.segments, dplyr::select(nodes, x, y, cl), by = c("cl.from" = "cl"))
+  line.segments <- left_join(line.segments, dplyr::select(nodes, x, y, cl), by = c("cl.to" = "cl"))
   
   colnames(line.segments) <- c("cl.from", "cl.to", "x.from", "y.from", "x.to", "y.to")
   
@@ -507,9 +514,10 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
     poly.Edges <- rbind(poly.Edges,lines.lr)
     
     Sys.sleep(0.01)
-    cat("\r", i, "of", imax)
+    # cat("\r", i, "of", imax) # Do not print edge count.
     
   }
+  message(paste(imax, 'edges calculated.\n'))
   
   if (plot.parts == TRUE) {
     write.csv(poly.Edges, file=file.path(out.dir,paste0(st,"poly.edges.csv"))) }
@@ -598,7 +606,8 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
                     "n_pcs: ", parent.frame$n.pcs, "\n", 
                     "k= ", parent.frame$k, "\n", 
                     "threshold: ", parent.frame$frac.th, "\n",
-                    "max_node_size: ", parent.frame$max_size))
+                    "max_node_size: ", parent.frame$max_size, "\n",
+                    "dodge_value: ", dodge_value))
     #plot.all
   }
 # plot.hull = FALSE
@@ -608,7 +617,7 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
    
   
   if (plot.parts == TRUE) {
-    ggsave(file.path(out.dir, paste0(st,"comb.constellation.pdf")), plot.all, width = plot.width, height = plot.height, units="cm", useDingbats=FALSE) }
+    ggsave(file.path(out.dir, paste0(st,"comb.constellation.pdf")), plot.all, width = plot.width, height = plot.height, units ="in", useDingbats=FALSE) }
   
   
   
@@ -638,7 +647,7 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
               scale_color_identity() + 
               geom_text(data=nodes,
                         aes(x=x, 
-                            y=y, 
+                            y=y,  
                             label=labels),
                         size = label.size)+
               theme_void()
@@ -723,13 +732,22 @@ plot_constellation <- function(knn.cl.df, cl.center.df, out.dir,
     gridExtra::marrangeGrob(list(dot.size.legend,edge.width.legend,cl.center.legend),
     nrow = 3, ncol=6, layout_matrix=layout_legend),height=20,width=20,useDingbats=FALSE)  
   }
-  
-  g2 <- gridExtra::arrangeGrob(grobs=list(dot.size.legend,edge.width.legend,cl.center.legend), 
+    
+  # Legend
+  g2 <- gridExtra::arrangeGrob(grobs=list(dot.size.legend,
+                                          edge.width.legend,
+                                          cl.center.legend), 
                                layout_matrix=layout_legend)
   
-  ggsave(file.path(out.dir, paste0(st, parent.frame$name, "_constellation.pdf")), # add name to pdf as specified when calling buildConstellation.Rmd
-  marrangeGrob(list(plot.all, g2), nrow = 1, ncol = 1), width = plot.width, height = plot.height, 
-  units = "cm", useDingbats=FALSE)
+  
+  # MAIN PRINT COMMAND. 
+  # Prints constellation plot and legend in one PDF doc of 2 pages.
+  ggsave(filename = file.path(out.dir, 
+                   paste0(parent.frame$st, '_', parent.frame$name, "_constellation.pdf")), 
+                   # ^ add name to pdf as specified when calling buildConstellation.Rmd
+        plot = marrangeGrob(list(plot.all, g2), nrow = 1, ncol = 1), 
+        width = plot.width, height = plot.height, 
+        units = "in", useDingbats = FALSE)
 }
 ```
 

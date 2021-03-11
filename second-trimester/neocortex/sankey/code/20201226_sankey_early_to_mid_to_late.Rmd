@@ -4,13 +4,36 @@ date: 2010-11-02
 output: html_notebook
 ---
 
+Neuron early -> neuron mid -> neuron late
 2020-12-26
-
-Neuron early -\> neuron mid -\> neuron late
-
 ```{r fig.width=10}
+
+sankey_counts_neuron <- sankey_counts %>% dfilter(item1 %>% str_detect('neuron') & 
+                                                        item2 %>% str_detect('neuron')) %>% dplyr::select(item1, item2, n, n_norm, genes)
+
+# Make each vector of genes into a single string w/ genes separated by ';' to write out to file.
+# [Bioconductor Forum](https://support.bioconductor.org/p/83911/)
+sankey_counts_neuron$genes %<>% unstrsplit(sep = ';')
+
+
+sankey_counts_rg_ipc_neuron <- 
+  # I think pairs` includes DE genes from all stages
+
+sankey_counts %>% dfilter(item1 %>% str_detect('rg|ipc') & 
+                    item2 %>% str_detect('ipc|neuron')) %>% 
+  dplyr::rename(celltype_target = cell_targetpe_target) %>%
+  arrange(celltype_source, stage_source, region_source, 
+          celltype_target, stage_target, region_target) %>%
+   dplyr::select(item1, item2, n, genes) %>%
+    mutate(genes = unstrsplit(genes, sep = ';'))
+
+  out_dir <- "~/Dropbox/ARK_lab/second-trimester/2nd Trimester Areas Paper/analysis/neocortex/sankey_plots"
+
+write_tsv(sankey_counts_neuron, "../out/split_by_stage/within_celltype_across_stages/sankey_counts_neuron.tsv")
+write_tsv(sankey_counts_rg_to_neuron, file.path(out_dir, 'split_by_stage/between_celltypes/sankey_counts_rg_ipc_neuron_by_stages.tsv'))
+
 sankey_counts_neuron_e2m <- sankey_counts %>% dfilter(item1 %>% str_detect('neuron_.*_early') & 
-                                                        item2 %>% str_detect('neuron_.*_mid'))
+                                                        item2 %>% str_detect('neuron_.*(_mid'))
 
 make_gvisSankey(chart_id = 'neuron_early_to_mid', gvis_df_x = sankey_counts_neuron_e2m)
 
@@ -32,6 +55,31 @@ From @sankey_plots.Rmd `{r 2020-10-21_normalizePairCounts}`
 
 ```{r}
 sankey_counts <- read_rds("../out_intermediate/sankey_markers_pairs_exnLineage.rds")
+sankey_counts_neuron_e2m %>% select(item1, item2, n, n_norm, genes)
+
+# Some genes are not shared with any item2. 
+# DE genes of a given item1 total ? 
+
+# # A tibble: 16 x 5
+# # Groups:   item1 [4]
+#    item1                 item2                   n n_norm genes       
+#    <chr>                 <chr>               <dbl>  <dbl> <named list>
+#  1 neuron_msp_early      neuron_msp_mid        165  0.450 <chr [165]> 
+#  2 neuron_msp_early      neuron_pfc_mid        134  0.365 <chr [134]> 
+#  3 neuron_msp_early      neuron_v1_mid          84  0.229 <chr [84]>  
+#  4 neuron_msp_early      neuron_temporal_mid    56  0.153 <chr [56]>  
+#  5 neuron_pfc_early      neuron_pfc_mid         87  0.236 <chr [87]>  
+#  6 neuron_pfc_early      neuron_msp_mid         85  0.230 <chr [85]>  
+#  7 neuron_pfc_early      neuron_temporal_mid    55  0.149 <chr [55]>  
+#  8 neuron_pfc_early      neuron_v1_mid          38  0.103 <chr [38]>  
+#  9 neuron_temporal_early neuron_msp_mid         92  0.630 <chr [92]>  
+# 10 neuron_temporal_early neuron_temporal_mid    61  0.418 <chr [61]>  
+# 11 neuron_temporal_early neuron_pfc_mid         50  0.342 <chr [50]>  
+# 12 neuron_temporal_early neuron_v1_mid          42  0.288 <chr [42]>  
+# 13 neuron_v1_early       neuron_msp_mid         95  0.477 <chr [95]>  
+# 14 neuron_v1_early       neuron_v1_mid          89  0.447 <chr [89]>  
+# 15 neuron_v1_early       neuron_temporal_mid    81  0.407 <chr [81]>  
+# 16 neuron_v1_early       neuron_pfc_mid         46  0.231 <chr [46]> 
 
 load("sankey_plots_workspaceImage.RData")
 ```

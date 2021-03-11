@@ -1,0 +1,871 @@
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+leg.col.nr: 5 
+ cl.center.df$cl_id: 33
+leg.col.nr: 5 
+ cl.center.df$cl_id: 34
+leg.col.nr: 5 
+ cl.center.df$cl_id: 35
+leg.col.nr: 5 
+ cl.center.df$cl_id: 36
+leg.col.nr: 5 
+ cl.center.df$cl_id: 37
+leg.col.nr: 5 
+ cl.center.df$cl_id: 38
+leg.col.nr: 5 
+ cl.center.df$cl_id: 39
+leg.col.nr: 5 
+ cl.center.df$cl_id: 40
+leg.col.nr: 5 
+ cl.center.df$cl_id: 41
+leg.col.nr: 5 
+ cl.center.df$cl_id: 42
+leg.col.nr: 5 
+ cl.center.df$cl_id: 43
+leg.col.nr: 5 
+ cl.center.df$cl_id: 44
+leg.col.nr: 5 
+ cl.center.df$cl_id: 45
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+leg.col.nr: 5 
+ cl.center.df$cl_id: 33
+leg.col.nr: 5 
+ cl.center.df$cl_id: 34
+leg.col.nr: 5 
+ cl.center.df$cl_id: 35
+leg.col.nr: 5 
+ cl.center.df$cl_id: 36
+leg.col.nr: 5 
+ cl.center.df$cl_id: 37
+leg.col.nr: 5 
+ cl.center.df$cl_id: 38
+leg.col.nr: 5 
+ cl.center.df$cl_id: 39
+leg.col.nr: 5 
+ cl.center.df$cl_id: 40
+leg.col.nr: 5 
+ cl.center.df$cl_id: 41
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
+Plotted node size legend.
+cowplot::get_legend(plot.dot.legend)
+leg.col.nr: 5 
+ cl.center.df$cl_id: 1
+leg.col.nr: 5 
+ cl.center.df$cl_id: 2
+leg.col.nr: 5 
+ cl.center.df$cl_id: 3
+leg.col.nr: 5 
+ cl.center.df$cl_id: 4
+leg.col.nr: 5 
+ cl.center.df$cl_id: 5
+leg.col.nr: 5 
+ cl.center.df$cl_id: 6
+leg.col.nr: 5 
+ cl.center.df$cl_id: 7
+leg.col.nr: 5 
+ cl.center.df$cl_id: 8
+leg.col.nr: 5 
+ cl.center.df$cl_id: 9
+leg.col.nr: 5 
+ cl.center.df$cl_id: 10
+leg.col.nr: 5 
+ cl.center.df$cl_id: 11
+leg.col.nr: 5 
+ cl.center.df$cl_id: 12
+leg.col.nr: 5 
+ cl.center.df$cl_id: 13
+leg.col.nr: 5 
+ cl.center.df$cl_id: 14
+leg.col.nr: 5 
+ cl.center.df$cl_id: 15
+leg.col.nr: 5 
+ cl.center.df$cl_id: 16
+leg.col.nr: 5 
+ cl.center.df$cl_id: 17
+leg.col.nr: 5 
+ cl.center.df$cl_id: 18
+leg.col.nr: 5 
+ cl.center.df$cl_id: 19
+leg.col.nr: 5 
+ cl.center.df$cl_id: 20
+leg.col.nr: 5 
+ cl.center.df$cl_id: 21
+leg.col.nr: 5 
+ cl.center.df$cl_id: 22
+leg.col.nr: 5 
+ cl.center.df$cl_id: 23
+leg.col.nr: 5 
+ cl.center.df$cl_id: 24
+leg.col.nr: 5 
+ cl.center.df$cl_id: 25
+leg.col.nr: 5 
+ cl.center.df$cl_id: 26
+leg.col.nr: 5 
+ cl.center.df$cl_id: 27
+leg.col.nr: 5 
+ cl.center.df$cl_id: 28
+leg.col.nr: 5 
+ cl.center.df$cl_id: 29
+leg.col.nr: 5 
+ cl.center.df$cl_id: 30
+leg.col.nr: 5 
+ cl.center.df$cl_id: 31
+leg.col.nr: 5 
+ cl.center.df$cl_id: 32
+cl.center
+cowplot::get_legend(cl.center)
+plot(cl.center.legend
