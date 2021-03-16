@@ -4,36 +4,32 @@ date: 2010-11-02
 output: html_notebook
 ---
 
-Neuron early -> neuron mid -> neuron late
+## Neuron early -> neuron mid -> neuron late
 2020-12-26
-```{r fig.width=10}
 
-sankey_counts_neuron <- sankey_counts %>% dfilter(item1 %>% str_detect('neuron') & 
-                                                        item2 %>% str_detect('neuron')) %>% dplyr::select(item1, item2, n, n_norm, genes)
+```{r}
+p_load(here)
+
+load("sankey_plots_workspaceImage.RData")
+```
+
+```{r fig.width=10}
+sankey_counts_neuron <- 
+  sankey_counts %>% 
+    dfilter(item1 %>% str_detect('neuron') & 
+            item2 %>% str_detect('neuron')) %>% 
+      dplyr::select(item1, item2, n, n_norm, genes)
 
 # Make each vector of genes into a single string w/ genes separated by ';' to write out to file.
 # [Bioconductor Forum](https://support.bioconductor.org/p/83911/)
 sankey_counts_neuron$genes %<>% unstrsplit(sep = ';')
 
-
-sankey_counts_rg_ipc_neuron <- 
-  # I think pairs` includes DE genes from all stages
-
-sankey_counts %>% dfilter(item1 %>% str_detect('rg|ipc') & 
-                    item2 %>% str_detect('ipc|neuron')) %>% 
-  dplyr::rename(celltype_target = cell_targetpe_target) %>%
-  arrange(celltype_source, stage_source, region_source, 
-          celltype_target, stage_target, region_target) %>%
-   dplyr::select(item1, item2, n, genes) %>%
-    mutate(genes = unstrsplit(genes, sep = ';'))
-
-  out_dir <- "~/Dropbox/ARK_lab/second-trimester/2nd Trimester Areas Paper/analysis/neocortex/sankey_plots"
+out_dir <- "~/Dropbox/ARK_lab/second-trimester/2nd Trimester Areas Paper/analysis/neocortex/sankey_plots"
 
 write_tsv(sankey_counts_neuron, "../out/split_by_stage/within_celltype_across_stages/sankey_counts_neuron.tsv")
-write_tsv(sankey_counts_rg_to_neuron, file.path(out_dir, 'split_by_stage/between_celltypes/sankey_counts_rg_ipc_neuron_by_stages.tsv'))
 
-sankey_counts_neuron_e2m <- sankey_counts %>% dfilter(item1 %>% str_detect('neuron_.*_early') & 
-                                                        item2 %>% str_detect('neuron_.*(_mid'))
+sankey_counts_neuron_e2m <- sankey_counts %>% dfilter(str_detect(item1, 'neuron_.*_early') & 
+                                                        str_detect(item2, 'neuron_.*_mid'))
 
 make_gvisSankey(chart_id = 'neuron_early_to_mid', gvis_df_x = sankey_counts_neuron_e2m)
 
@@ -48,8 +44,32 @@ make_gvisSankey(chart_id = 'neuron_mid_to_late', gvis_df_x = sankey_counts_neuro
 Resulting plot:
 
 ![](images/sankey_neuron_early_to_mid.png){width="428"}
-
 ![](images/sankey_neuron_mid_to_late.png){width="431"}
+
+## Radial glia early -> mid -> late
+2021-03-12
+```{r}
+sk_counts_rg_e2m <- sankey_counts %>% dfilter(str_detect(item1, 'rg_.*_early') & 
+                                              str_detect(item2, 'rg_.*_mid'))
+
+make_gvisSankey(chart_id = 'radialglia_early_to_mid', gvis_df_x = sk_counts_rg_e2m)
+```
+
+## Save sankey internsecion counts and genes between all radial glia, neuron and IPC groups.
+```{r}
+# Use `sankey_counts`. I think `pairs` includes DE genes from all stages
+sankey_counts_tmp <- sankey_counts %>% 
+  dplyr::rename(celltype_target = cell_targetpe_target) %>%
+  arrange(celltype_source, stage_source, region_source, 
+          celltype_target, stage_target, region_target) %>%
+   dplyr::select(item1, item2, n, genes) %>%
+    mutate(genes = unstrsplit(genes, sep = ';'))
+
+out_dir <- '~/Dropbox/ARK/2nd Trimester Areas Paper/analysis/neocortex/sankey'
+write_tsv(sankey_counts_tmp, file.path(out_dir, 'sankey_counts_rg_ipc_neuron_by_stages.tsv'))
+```
+
+
 
 From @sankey_plots.Rmd `{r 2020-10-21_normalizePairCounts}`
 
@@ -81,7 +101,7 @@ sankey_counts_neuron_e2m %>% select(item1, item2, n, n_norm, genes)
 # 15 neuron_v1_early       neuron_temporal_mid    81  0.407 <chr [81]>  
 # 16 neuron_v1_early       neuron_pfc_mid         46  0.231 <chr [46]> 
 
-load("sankey_plots_workspaceImage.RData")
+
 ```
 
 ```{r}
