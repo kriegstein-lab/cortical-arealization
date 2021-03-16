@@ -2,9 +2,9 @@ celltype	cluster_color	marker
 cr	darkgrey	RELN
 dividing	darkkhaki	TOP2A
 neuron	deepskyblue	NEUROD6
-neuron-newborn	#4BDEDE
-neuron-deeplayer	#93b0ff
-neuron-upperlayer	#597aed
+neuron-newborn	#6ec3e2
+neuron-deeplayer	#2255c3
+neuron-upperlayer	#668cf4
 rg-org	#ffa357
 rg-vrg	#ffcc6c
 rg-trg	#ffc797
@@ -18,3 +18,4 @@ radialglia	darkorange	HES1
 rg	darkorange	HES1
 endo	blanchedalmond	CLDN5
 astrocyte	purple	AQP4
+

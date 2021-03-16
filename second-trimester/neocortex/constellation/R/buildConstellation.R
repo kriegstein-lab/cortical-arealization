@@ -28,7 +28,7 @@ buildConstellation <- function(args_list,
                                max_size = 25, label.size = 2, 
                                exaggeration = exaggeration) {
 
-source_rmd("~/cse-phd/second-trimester/neocortex/constellation_plots/R/scrattch.hicat_fxns.Rmd")
+source_rmd('~/cse-phd/second-trimester/neocortex/constellation/R/scrattch.hicat_fxns.Rmd')
   
 cells.cl.df <- args_list$cells_cl_df
 rd.dat <- args_list$reductions

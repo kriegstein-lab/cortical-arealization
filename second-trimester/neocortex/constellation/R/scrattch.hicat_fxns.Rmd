@@ -252,7 +252,12 @@ plot_constellation <- function(knn.cl.df,
   
   if (plot.parts == TRUE) {
     
-    ggsave(file.path(out.dir, paste0(st,"nodes.org.pos.pdf")), p.nodes, width = plot.width, height = plot.height, units="cm",useDingbats=FALSE) }
+    ggsave(file.path(out.dir, paste0(st,"nodes.org.pos.pdf")), 
+           p.nodes, 
+           width = plot.width, height = plot.height, 
+           units="cm",useDingbats = FALSE) 
+           
+           }
   
   
   ###==== extract node size/stroke width to replot later without scaling
@@ -264,33 +269,35 @@ plot_constellation <- function(knn.cl.df,
   
   ###==== if node.dodge==TRUE new xy coords are calculated for overlapping nodes.
   
-    if (node.dodge==TRUE){
+if (node.dodge == TRUE) {
   
   #<><><># make update here to convert units by scale. check geom_mark_hull code for oneliner
       
   # dodge nodes starting at center of plot moving outward 
       
-      nodes$r <- (nodes$size/10)/2
-      
-      
-      x.list <- c(mean(nodes$x), nodes$x )
-      y.list <- c(mean(nodes$y), nodes$y)
-      dist.test <- as.matrix(dist(cbind(x.list, y.list)))
-      nodes$distance <- dist.test[2:nrow(dist.test), 1]
-      nodes <- nodes[order(nodes$distance),]
+  nodes$r <- (nodes$size/10)/2
+  
+  
+  x.list <- c(mean(nodes$x), nodes$x )
+  y.list <- c(mean(nodes$y), nodes$y)
+  dist.test <- as.matrix(dist(cbind(x.list, y.list)))
+  nodes$distance <- dist.test[2:nrow(dist.test), 1]
+  nodes <- nodes[order(nodes$distance),]
        
-      
+    
   for (d1 in 1:(nrow(nodes)-1)) {
+  
     j <- d1+1
-      for (d2 in j:nrow(nodes)) {
-      # print(paste(d1,d2)) Do not print node pair counts.
-      
+    
+    for (d2 in j:nrow(nodes)) {
+    # print(paste(d1,d2)) Do not print node pair counts.
+    
         distSq <- sqrt(((nodes$x[d1]-nodes$x[d2])*(nodes$x[d1]-nodes$x[d2]))+((nodes$y[d1]-nodes$y[d2])*(nodes$y[d1]-nodes$y[d2])))
       
         radSumSq <- (nodes$r[d1] * dodge_value)+ (nodes$r[d2]* dodge_value) # overlapping radius + a little bit extra
        
-        if (distSq < radSumSq) {
-          print(paste(d1,d2))
+        if (distSq < radSumSq) { 
+          # print(paste(d1,d2))  Do not print node pair counts.
           
           subdfk <- nodes[c(d1,d2),]
           subdfk.mod <- subdfk
@@ -331,27 +338,25 @@ plot_constellation <- function(knn.cl.df,
         }
       }
       
+} # END node_dodge if statement
+  
+# write.csv(nodes, file = file.path(out.dir,paste0(st, "nodes.dodge.csv")))
+nodes <- nodes[order(nodes$cluster_id), ]
+# print(nodes)
+  
+## when printing lines to pdf the line width increases slightly. This causes the edge to extend beyond the node. Prevent this by converting from R pixels to points. 
+conv.factor <- ggplot2::.pt*72.27/96
+  
+## line width of edge can be scaled to node point size 
+nodes$node.width <- nodes$size 
+  
+if (plot.parts == TRUE) { 
+  if (node.dodge == TRUE) {
+  write.csv(nodes, file=file.path(out.dir,paste0(st,"nodes.dodge.csv"))) }
+  else {
+    write.csv(nodes, file=file.path(out.dir,paste0(st,"nodes.csv")))
   }
-  
-    # write.csv(nodes, file = file.path(out.dir,paste0(st, "nodes.dodge.csv")))
-    nodes <- nodes[order(nodes$cluster_id),]
-    # print(nodes)
-  
-  ## when printing lines to pdf the line width increases slightly. This causes the edge to extend beyond the node. Prevent this by converting from R pixels to points. 
-  conv.factor <- ggplot2::.pt*72.27/96
-  
-  
-  ## line width of edge can be scaled to node point size 
-  nodes$node.width <- nodes$size 
-  
-  
-  if (plot.parts == TRUE) { 
-    if (node.dodge == TRUE) {
-    write.csv(nodes, file=file.path(out.dir,paste0(st,"nodes.dodge.csv"))) }
-    else {
-      write.csv(nodes, file=file.path(out.dir,paste0(st,"nodes.csv")))
-    }
-  }
+}
   
   ###==== prepare data for plotting of edges between nodes
   

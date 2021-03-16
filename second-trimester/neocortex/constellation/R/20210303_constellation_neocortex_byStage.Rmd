@@ -6,6 +6,8 @@ output: html_document
 
 ```{r}
 knitr::opts_knit$set(progress = TRUE, verbose = TRUE)
+setwd("~/cse-phd/second-trimester/neocortex/constellation/R")
+getwd()
 ```
 
 ```{r}
@@ -18,8 +20,8 @@ ncx.exn@meta.data %>% count(individual)
 # This object was saved when making the 'cell types by cluster' constellation plot,
 # but has everything we need to make dfs.
 loadData <- function(rds_path) {
-  
-              x <- read_rds(rds_path)
+
+    x <- read_rds(rds_path)
               
               names(x) <- c('cells_cl_df', 'cluster_colors', 'cl', 'cl_numeric', 'cl_center_df', 'reductions')
               
@@ -50,7 +52,6 @@ loadData <- function(rds_path) {
               return(x)
 } 
 
-
 getReductions <- function(object, stage_object) {
   
                     cells_cl_df <- stage_object
@@ -73,8 +74,27 @@ getExOnly <- function(cells) {
   return(cells)
 }
 
+prepData <- function(annotation_path,
+                    cluster_colors_path,
+                    out_dir,
+                    object_path
+                    ) {
 
+  annotations <<- read_tsv(annotation_path)
 
+  a <<- loadData(rds_path = object_path)
+  a$cl <<- NULL
+  a$cl_numeric <<- NULL
+  a$cl_center_df <<- NULL
+
+  cluster_colors <<- read_tsv(cluster_colors_path)
+
+  a_excit <<- getExOnly(a)
+  a$cells_cl_df %>% dplyr::count(cell_type, annotation, cell_type_area, celltype_area_2)
+
+  out_dir <<- out_dir
+
+}
 # --------
 
 x$cluster_colors %<>% rename(clade = 'celltype')
@@ -229,11 +249,40 @@ write_rds(a, "./neocortex_input_for_constellation_by_stages.rds")
 # - Do only between RG/Neurons/IPCs.
 ```
 
+## Only between RG/IPC/excitatory neurons.
+```{r 2021-03-15}
+
+prepData(annotation_path = '../../data/tbls/Neocortex_subset1_clustermarkers_combo2_RGandNeuronannotations.csv',
+         out_dir = '~/Dropbox/ARK_lab/2nd Trimester Areas Paper/revisions/Plots to Add/constellation/org_neuron_subtypes',
+         cluster_colors_path = './cluster_colors.tsv',
+         object_path = '../out/out_intermediate/ncx_exn_byCluster/dfs_and_objects_for_constellationPlot_ncx_exn_byCluster.rds')
+
+split_stages_annot_ex <- a$cells_cl_df %>% split(.$stage) %>% map(~ getReductions(a, .)) %>% map(~ getExOnly(.))
+
+source('../R/buildConstellation.R')
+out_dir <- "~/Dropbox/ARK_lab/2nd Trimester Areas Paper/revisions/Plots to Add/constellation"
+
+result <- split_stages_annot_ex %>% enframe %>% 
+                  pmap(~ buildConstellation(args_list = ..2,
+                                                     name = ..1,
+                                                      groups.col = "cell_type_area",
+                                                      colors.use = cluster_colors,
+                                                      run.knn = TRUE,
+                                                  node_label = 'area',
+                                                      k = 15,
+                                                      n.pcs = 50,
+                                                      frac.th = 0.1,
+                                                      out.dir = out_dir, max_size = 30,
+                                            subclades = FALSE, # TODO take this out
+                                            plot.parts = FALSE, dodge_value = 0.75, label.size = 2, exaggeration = 0.2))
+```
+
+
 ## oRG, vRG, tRG
 
 Clean up annotations.
 ```{r}
-annotations_path = "../../data/tbls/Neocortex_subset1_clustermarkers_combo2_RGandNeuronannotations.csv"
+annotations_path <- "../../data/tbls/Neocortex_subset1_clustermarkers_combo2_RGandNeuronannotations.csv"
 annotations <- read_tsv(annotations_path) %>% dfilter(!is.na(annotation)) %>%
   mutate(cluster_label = tolower(cluster_label) %>% str_remove_all('combo2_'),
          annotation = tolower(annotation) %>% str_remove_all('late|early') %>% str_replace('_', '-'),
@@ -246,7 +295,9 @@ write_tsv(annotations, annotations_path)
 ```{r}
 annotations <- read_tsv(annotations_path)
 
-a <- loadData(rds_path = '../out_intermediate/ncx_exn_byCluster/dfs_and_objects_for_constellationPlot_ncx_exn_byCluster.rds') 
+a <- loadData(rds_path = paste0('../out/out_intermediate/ncx_exn_byCluster/',
+                          'dfs_and_objects_for_constellationPlot_ncx_exn_byCluster.rds'))
+
 a$cl <- NULL
 a$cl_numeric <- NULL
 a$cl_center_df <- NULL
@@ -255,7 +306,10 @@ cluster_colors <- read_tsv('../R/cluster_colors.tsv')
 
 a$cells_cl_df %>% dplyr::count(cell_type, annotation, celltype_area_2)
 
-split_stages_annot_ex <- a$cells_cl_df %>% split(.$stage) %>% map(~ getReductions(a, .)) %>% map(~ getExOnly(.))
+split_stages_annot_ex <- 
+  a$cells_cl_df %>% split(.$stage) %>% 
+    map(~ getReductions(a, .)) %>% 
+      map(~ getExOnly(.))
 
 source('../R/buildConstellation.R')
 out_dir <- '~/Dropbox/ARK_lab/second-trimester/2nd Trimester Areas Paper/revisions/constellation/rg_neuron_subtypes/'
@@ -276,31 +330,9 @@ result <- split_stages_annot_ex %>% enframe %>%
 ```
 
 
-```{r}
-  updateClCenterDf <- function(x) {
-    
-    message('Updating cl.center.df')
-    
-    areas <- c('pfc', 'motor', 'somatosensory', 'parietal', 'temporal', 'v1')
-    areas_rgx <- paste0('_', areas) %>% glue_collapse('|')
-    
-    x$cl.center.df %<>% mutate_if(.predicate = is.character, tolower) %>%
-      mutate(cluster_label = str_extract(cluster_label, areas_rgx) %>% str_remove('_'),
-             subclade = case_when(! .$clade == 'ipc' ~ str_remove(.$area, areas_rgx)),
-      ) %>%
-      unite(clade, 'clade', 'subclade') %>% 
-      mutate(clade = str_remove_all(clade, '_NA| |late')) %>%
-      select(-cluster_color) %>%
-      left_join(cluster_colors, by = c('clade' = 'celltype'))
-    
-    x$knn.cl.df.filter <- filterKNN(x$knn.cl, frac.th = 0.1)
-    
-    print(x$cl.center.df)
-    return(x)
-  }
   
 
-  
+```{r}
   cl.center.df <- updateClCenterDf(cl.center.df)
   
 test <- result %>% map(~ updateClCenterDf(.))
@@ -338,29 +370,33 @@ test[[1]]$cl.center.df$cluster_size
 ## Radial glia subtypes - all stages together:
 
 ```{r}
-a$cells_cl_df %>% dplyr::count(cell_type, annotation, celltype_area_2)
-out_dir <- '~/Dropbox/ARK_lab/second-trimester/2nd Trimester Areas Paper/revisions/constellation/org_neuron_subtypes/subtypes_only'
+
+
+prepData(annotation_path = '../../data/tbls/Neocortex_subset1_clustermarkers_combo2_RGandNeuronannotations.csv',
+         out_dir = '~/Dropbox/ARK_lab/2nd Trimester Areas Paper/revisions/Plots to Add/constellation/org_neuron_subtypes',
+         cluster_colors_path = './cluster_colors.tsv',
+         object_path = '../out/out_intermediate/ncx_exn_byCluster/dfs_and_objects_for_constellationPlot_ncx_exn_byCluster.rds')
 
 source('../R/buildConstellation.R')
 
-a_excit <- getExOnly(a)
-
-result_all_stages <- a_excit %>% buildConstellation(args_list = .,
+result_all_stages <- 
+  a_excit %>% buildConstellation(args_list = .,
                               name = 'all_stages',
                               groups.col = "celltype_area_2",
                               colors.use = cluster_colors,
                               run.knn = TRUE,
                               node_label = 'area',
                               k = 15,
-                              n.pcs = 50,
+                              n.pcs = 25,
                               frac.th = 0.1,
                               out.dir = out_dir, 
-                              max_size = 25,
-                                            
+                              max_size = 25,     
                               subclades = FALSE, # TODO take this out
-                              plot.parts = FALSE, dodge_value = 1.1, label.size = 2, exaggeration = 0.2)
+                              plot.parts = FALSE, dodge_value = 1.1, 
+                              label.size = 2, exaggeration = 0.2)
 
 # 2pm start - 35min runtime
+# 5:30pm start - 
 
 # I had not realized that there were some rg w/o a subtype annotation - those are the lone labels without a color node on the plot. 
 # Should we assign those to their own ‘rg’ category, or bin them with vRGs?
@@ -368,3 +404,27 @@ result_all_stages <- a_excit %>% buildConstellation(args_list = .,
 
 
 ```
+
+This lives in buildConstellation now but is unnecessary since I cleaned up the annotations.
+```{r}
+  updateClCenterDf <- function(x) {
+    
+    message('Updating cl.center.df')
+    
+    areas <- c('pfc', 'motor', 'somatosensory', 'parietal', 'temporal', 'v1')
+    areas_rgx <- paste0('_', areas) %>% glue_collapse('|')
+    
+    x$cl.center.df %<>% mutate_if(.predicate = is.character, tolower) %>%
+      mutate(cluster_label = str_extract(cluster_label, areas_rgx) %>% str_remove('_'),
+             subclade = case_when(! .$clade == 'ipc' ~ str_remove(.$area, areas_rgx)),
+      ) %>%
+      unite(clade, 'clade', 'subclade') %>% 
+      mutate(clade = str_remove_all(clade, '_NA| |late')) %>%
+      select(-cluster_color) %>%
+      left_join(cluster_colors, by = c('clade' = 'celltype'))
+    
+    x$knn.cl.df.filter <- filterKNN(x$knn.cl, frac.th = 0.1)
+    
+    print(x$cl.center.df)
+    return(x)
+  }
