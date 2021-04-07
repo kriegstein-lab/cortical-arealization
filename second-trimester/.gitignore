@@ -3,3 +3,5 @@ second-trimester.code-workspace
 *.h5ad
 *.h5Seurat
 *.h5seurat
+*.Rmd
+*.rmd

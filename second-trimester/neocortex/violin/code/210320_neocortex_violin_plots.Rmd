@@ -44,12 +44,7 @@ neocortex_subset@meta.data %<>% mutate(cortical_area = factor(cortical_area, lev
                                                                                 
 markers <- read_tsv("../../markers/caldwell_neuron_table.tsv", comment = "//")
 markers_allen <- read_tsv("../../markers/brainspan_RNAseq.tsv", comment = "//")
-settings <- tribble(
-~slot_use, ~remove_0, ~dir_name,
-"scale_data", FALSE, "scale_include_zero",
-"scale_data", TRUE, "scale_remove_zero",
-"data",       FALSE, "data_include_zero",
-"data",       TRUE, "data_remove_zero")
+
 
 settings <- expand_grid(slot_use = c("scale_data", "data"), 
                         remove_0 = c("TRUE", "FALSE"), 
@@ -58,7 +53,7 @@ settings <- expand_grid(slot_use = c("scale_data", "data"),
 
 # -----------------------------------------------------------------------------  
 
-violin_plots <- pmap(.l = settings[11,], 
+violin_plots <- pmap(.l = settings[10:12,], 
                      .f = ~ makeViolin(genes = markers_allen$Symbol,
                                        slot_use = get(..1), 
                                        remove_0 = ..2,
@@ -67,7 +62,14 @@ violin_plots <- pmap(.l = settings[11,],
                                        plots_per_page = 18))
   
   
-patchwork::wrap_plots(violin_plots,ncol = 6, nrow = 3)
+violin_plots <- pmap(.l = settings %>% filter(slot_use == "data" & scale_violin == "width"), 
+                     .f = ~ makeViolin(genes = markers$Gene,
+                                       slot_use =get(..1), 
+                                       remove_0 = ..2, 
+                                       scale_violin = ..3,
+                                       dir_name = ..4,
+                                       plots_per_page = 24,
+                                       out_dir = "caldwell_review_markers"))            
 
 # -----------------------------------------------------------------------------  
 
@@ -80,9 +82,9 @@ violin_plots <- pmap(.l = settings,
 # -----------------------------------------------------------------------------                
 
 makeViolin <- function(genes, slot_use, remove_0 = FALSE, plots_per_page = 24, 
-                       dir_name, scale_violin) {
+                       dir_name, scale_violin, out_dir) {
                 
-   out_dir <- fs::dir_create(file.path("../out/allen", dir_name))
+   out_dir <- fs::dir_create(file.path("../out", out_dir, dir_name))
    
    plots_per_page <- plots_per_page
    
@@ -115,10 +117,11 @@ quantViolin <- function(gene, seurat_object, percentile = 0.99, group_by, slot_u
 
 group_by = enquo(group_by)
 message(gene)
-expression <- slot_use[ , gene] 
-noise <- rnorm(n = length(expression) / 100000 )
-expression <- expression + noise 
-print(expression)
+
+expression <- slot_use[ , gene]
+
+message("Adding noise to expression")
+noise <- abs(rnorm(n = length(expression)) / 10)
 
 trim_violin <- TRUE
 
@@ -127,31 +130,27 @@ if(remove_0 == TRUE) {
   trim_violin = FALSE
 }
 
+message("Trimming to percentile")
 pr <- percentile
-
 q  <- quantile(expression, c(1 - pr, pr), na.rm = TRUE)
 expression <- squish(expression, q)
 
 
- 
-#  if (all(data[, feature] == data[, feature][1])) { 
-#    warning(paste0("All cells have the same value of ", feature, ".")) 
-#  } else{ 
-
-#---------------------------------
-
-df <- add_column(seurat_object@meta.data, "expression" = expression)
-plot <- df %>% ggplot(aes(x = !!group_by, y = expression, 
+message("Making plots.")
+df <- add_column(seurat_object@meta.data, "expression" = expression) %>%
+          mutate(expression_noisy = case_when(expression == 0 ~ expression + noise,
+                                        TRUE ~ expression))
+plot <- df %>% ggplot(aes(x = !!group_by, y = expression_noisy, 
              colour = !!group_by, fill = !!group_by)) + 
 
-  geom_violin(alpha = 0.2, scale = scale_violin, trim = trim_violin) +
+  geom_violin(alpha = 0.2, scale = scale_violin, trim = trim_violin, adjust = 1) +
   ggtitle(gene) +
     scale_color_manual(aesthetics = c("colour", "fill"), values = colors_area$color) +
   theme_void() +
   theme(legend.position = "none")
 
 if (remove_0 == TRUE | (remove_0 == FALSE & sum(expression > 0))) {
-   plot <- plot + geom_jitter(alpha = 0.2,  size = 0.3)
+   plot <- plot + geom_jitter(data = filter(df, !expression == 0), alpha = 0.2,  size = 0.3)
 }
 
 return(plot)

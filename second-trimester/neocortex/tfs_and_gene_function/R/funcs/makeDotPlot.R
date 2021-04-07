@@ -13,7 +13,7 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
                           genes_list,   
                           idents_use, 
                           group_by, 
-                          split_by, 
+                          split_by,  # cell_type
                           scale = FALSE,
                         # Params for scaling and plotting
                           mode = c('genes_by_area', 'paired_areas') ,
@@ -21,9 +21,11 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
                           scale_by = 'gene',
                         # Params for plotting and printing
                           color_scale = 'viridis',
+                          max_size = 500/n_genes,
                           group, 
                           area, 
-                          title) {
+                          title,
+                          quantiles = c(.05 , .95)) {
 
   # 1. Make Seurat DotPlot -------------------------
   
@@ -31,7 +33,7 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
                            idents = idents_use,
                            features = genes_list,
                            group.by = group_by,
-                           split.by = 'cell_type',
+                           split.by = split_by,
                            scale = scale,
                            cols =  "RdYlBu",
                            dot.min = 0.01)
@@ -41,6 +43,7 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
       x <- dotplot$data %>%
           separate(id, c('id_1', 'id_2'), remove = FALSE)
   
+      print(x)
       ## Clean up x$data for manipulations below (scaling, ggplot)
 
       # For normal DotPlot  
@@ -68,32 +71,36 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
       
       # type: normal
           if(any(x$id_1 == 'pfc')) { 
-            x %<>% mutate(id_1 = factor(id_1, levels = levels(ncx_full@meta.data$area))) 
+            x %<>% mutate(id_1 = factor(id_1, levels = cortical_areas)) 
           }
         
-      # type: paired
-         if(any(str_detect(x$id_1, '18'))) {
-           x %<>% mutate(id_1 = as.numeric(id_1)) 
-         }
+     # # type: paired
+     #    if(any(str_detect(x$id_1, '18'))) {
+     #      x %<>% mutate(id_1 = as.numeric(id_1)) 
+     #    }
          
-         if(any(x$id_2 == 'pfc')) { 
-           x %<>% mutate(id_1 = factor(id_1, levels = levels(ncx_full@meta.data$area))) 
-         }
+       #  if(any(x$id_2 == 'pfc')) { 
+       #    x %<>% mutate(id_1 = factor(id_1, levels = levels(seurat_object@meta.data$area))) 
+       #  }
          
-         if(any(str_detect(x$id_1, '[:digit:]+'))) {
-           x %<>% mutate(id_1 = as.numeric(id_1)) 
-         }
+        # if(any(str_detect(x$id_1, '[:digit:]+'))) {
+        #   x %<>% mutate(id_1 = as.numeric(id_1)) 
+        # }
            
   
   # 3. SCALING ----------------------------------------------------
       message('Scaling. \n ')
-      
+
+x %<>% group_by(features.plot) %>% 
+  mutate(avg_exp_quant = scales::squish(avg.exp, quantile(avg.exp, quantiles))) %>% 
+  ungroup
+
       # Scale average expression values by individual.
       if(scale_by == 'gene') {
         
         cat('Scaling each gene across each group (column-wise).\n')
         x %<>% group_by(features.plot) %>%
-          mutate(scaled_exp = scale(avg.exp, center = TRUE)) %>%
+          mutate(scaled_exp = scale(avg_exp_quant, center = TRUE)) %>%
           ungroup
       } 
       
@@ -113,24 +120,22 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
        #         mutate(scaled_exp = scale(avg.exp, center = TRUE)) %>%
        #         ungroup
        #  }
-       
+       message("Scaled\n")
+       print(x)
+
     # END SCALING
      
   # 4. Use x$data to make own ggplot dotplot. ---------------------------------------
   
-
-   
-   message('Making ggplot \n x: \n')
   
+  message('n_genes: \n'); cat(n_genes <- n_distinct(x$features.plot))
+          
+  message('Max size: \n'); cat(max_size <- 500 / n_genes)
+
       # PFC / V1 DotPlots across ages. (side-by-side areas) ----------------------------------
 
       
         if(mode == 'paired-areas') {
-          
-          
-          message('n_genes: \n'); cat(n_genes <- n_distinct(x$features.plot))
-          
-          message('Max size: \n'); cat(max_size <- 500 / n_genes)
           
           # id_1 = area/region; 1 = pfc ; 6 = v1
           # id_2 = age
@@ -168,9 +173,9 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
             # id_1 = area
              x_spread <- x %>%
               select(features.plot, id_1, scaled_exp) %>% 
-               spread(key = id_1, value = scaled_exp)
+               pivot_wider(id_cols = features.plot, names_from = id_1,  values_from = scaled_exp)
          }
-         
+         print(x_spread)
          #  > x_spread
            
          #   A tibble: 19 x 7
@@ -196,15 +201,13 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
          #   18 DDIT3          0.333 -0.0637        -0.173    1.75    -1.12   -0.729 
          #   19 CEBPD         -0.727 -0.520         -0.345   -0.0106   1.98   -0.382 
            
-
-  
-   
-  # 5. CLUSTER GENES ----------------------------------------------------------
+# 5. CLUSTER GENES ----------------------------------------------------------
   # by similarity
    
    clusterGenes <- function(x, x_spread, method_dist) {    
      
-          dist <- x_spread %>% column_to_rownames('features.plot') %>% 
+          dist <- x_spread %>% column_to_rownames('features.plot') %>% as.matrix() %>%
+
                       dist(diag = TRUE, upper = TRUE, method = method_dist)
            
            genes_hclust <- hclust(dist)
@@ -220,35 +223,33 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
           return(x)
    }
    
-   x <- clusterGenes(x, x_spread, method_dist = 'euclidean')
+   x_clustered <- clusterGenes(x, x_spread, method_dist = 'euclidean')
   
   # 6. GGPLOT -------------------------------------------------
+
+     message('Making ggplot \n x: \n')
   
-  dotplot <- ggplot(x) + ggtitle(title) +
+  dotplot <- ggplot(x_clustered) + ggtitle(title) +
   
             geom_point(aes(x = features.plot, y = id_1,  # x = gene_region if mode = 'paired'
                  colour = scaled_exp,
+                 # colour = avg.exp.scaled,
                  # alpha = scaled_exp,
                  size = pct.exp),
-                 shape = 16) +
-    
-    # Color scale . . . . . . . . . . . . . . . . 
-
-      if(color_scale == 'viridis') {  
-        
-        dotplot <- dotplot + 
-          scale_colour_gradientn(colours = viridis(n = 100, option = 'plasma', end = 0.95),
+                 shape = 16) + 
+          scale_colour_gradientn(colours = viridis(n = 100, option = 'plasma', end = 0.9),
                                  na.value = "white")
-        }
+    
   
-      if(color_scale == 'red_yellow_blue'){
+      if(color_scale == 'red_yellow_blue') {
         
         dotplot <- dotplot + 
                       scale_colour_gradientn(colours = rev(heatmap.colors),
                                          # TODO Maybe keep high yellow, low blue gradient.
                                          #values = c(0, 0.3, 1),
                                          # breaks = c(0, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9),
-                                         # limits = c(0.01, 0.9),
+                                         # limits = c(-1.9, 1.9),
+                                         oob = scales::squish,
                                          na.value = "white")
       }
   
@@ -258,12 +259,12 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
     
       # scale_x_discrete(labels = x$x_label) +
       # scale_alpha(range = c(0.5, 0.9)) +
-      scale_size_area(limits = c(0, 100), max_size = max_size) +
+      scale_size_area(limits = c(2, 90), max_size = max_size) +
 
       guides(size = guide_legend(direction = "vertical")) +
       
       theme_void() +
-      theme(plot.title = element_text(size = 9), 
+      theme(plot.title = element_text(size = 9),
             text = element_text(size = 5, colour = 'grey30'),
             axis.text.x = element_text(size = 5, angle = 45, vjust = 1, hjust = 1),
             axis.text.y = element_text(size = 5, angle = 0, hjust = 1),
@@ -271,7 +272,10 @@ makeDotPlot <- function(# Params for Seurat::DotPlot
             legend.position = 'right',
             legend.key.size = unit(0.1, units = 'in'))
         
+return(lst(x, x_clustered, dotplot))
+
 } # END makeDotPlot ---------------------------------------------
+
 
 
 heatmap.colors <- 
