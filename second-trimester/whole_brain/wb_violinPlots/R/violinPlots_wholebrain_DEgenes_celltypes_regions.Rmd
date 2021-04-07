@@ -222,7 +222,7 @@ for(i in names(m1$neurons)) {
 ## plot.margin to adjust the white space between each plot.
 ## ... pass any arguments to VlnPlot in Seurat
 
-modify_vlnplot<- function(obj, 
+modify_vlnplot <- function(obj, 
                           feature, 
                           pt.size = 0,
                           ...) {

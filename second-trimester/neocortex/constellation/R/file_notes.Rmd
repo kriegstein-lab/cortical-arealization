@@ -1,5 +1,6 @@
 # Gene marker tables:
-## df_markers_by_area_celltype_indiv.txt
+
+df_markers_by_area_celltype_indiv.txt
     p-value goes from 0-1 (not filtered.)
     [2020-11-19] Combined and saved from files imported from:
     `aparna/homefiles/Fall2019_finalclustering_secondtrimester/_neocortex_*_byarea_clustermarkers.txt`
@@ -8,16 +9,17 @@
         - within each individual.
      See `sankey_plots.Rmd`
 
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
 # Seurat object subsets:
 
-```{r}
 subsetSeurat(Neocortex, cells.keep = ncx.clusters.exn$cell.name %>% sample(50000), write.to = "../data/ncx.v3.exn.sub_50k.rds")
 subsetSeurat(Neocortex, cells.keep = ncx.clusters.exn$cell.name %>% sample(100000), write.to = "../data/ncx.v3.exn.sub_100k.rds")
-```
+
 
 • Smaller dataset for working locally / not on massive cluster:
-```{r}
-# Custom function subsetSeurat (described below in fxns section)
+
+Custom function subsetSeurat (described below in fxns section)
 subsetSeurat(Neocortex, "data/ncx_v3_40k.rds")
 
 # On Mac

@@ -362,3 +362,9 @@ result_all_stages <- a %>% buildConstellation(args_list = .,
 
 p_load(dplyr)
 ```
+
+```{r}
+out_dir <- '~/Dropbox/ARK_lab/second-trimester/2nd Trimester Areas Paper/revisions/plots_constellation/'
+rds <- read_rds(file.path(/by_stages_no_subtypes/excitatory_only/pc50/20210315.1804_constellation_result_early.rds
+```
+

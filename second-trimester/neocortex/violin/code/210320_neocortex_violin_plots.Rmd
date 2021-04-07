@@ -1,0 +1,161 @@
+---
+title: "Neocortex Frontal Marker"
+output: html_notebook
+---
+
+```{r}
+p_load(Seurat)
+p_load(scales)
+here::i_am("second-trimester/neocortex/violin/code/210320_neocortex_violin_plots.Rmd") 
+p_load(here)
+here()
+
+root <- rprojroot::is_rstudio_project
+root <- find_root(criterion = root)
+colors_area <- read_tsv(root  )
+p_load(whereami)
+whereami::thisfile()
+root_file <- root$make_fix_file()
+here::here("colors_area.tsv")
+reader::find.file(dir = here(), "colors_area.tsv", recurse = TRUE)
+dr_here()
+neocortex_subset <- read_rds("../../data/210322_neocortex_full_v3.2.3_subset_0.05.rds")   
+
+colors_area <- fs::dir_ls(path = here(), glob = "*colors_area.tsv*", recurse = TRUE) %>% read_tsv()
+```
+
+```{r}
+conflict_prefer("filter", "dplyr")
+source_rmd("../../../R/stackedViolinPlots.Rmd")
+```
+```{r}
+StackedVlnPlot(obj = neocortex_subset,
+               features = c(#"FGF8", "SP8", "AUTS2",  "FGF19", "FGF17", "ETV4", "ETV1", "LMO3", 
+                            "PAX6"
+                            ), pt.size = 1, title = "Frontal", group_by = "cortical_area")
+p_version(Seurat)
+colors_area <- root$findfile("colors_area") %>% read_tsv(.)
+
+neocortex_subset <- ScaleData(neocortex_subset, do.center = F, ) # Maybe reduce scale.max ? 
+data <- neocortex_subset@assays$RNA@data %>% t
+scale_data <- neocortex_subset@assays$RNA@scale.data %>% t
+
+neocortex_subset@meta.data %<>% mutate(cortical_area = factor(cortical_area, levels = colors_area$category))
+                                                                                
+markers <- read_tsv("../../markers/caldwell_neuron_table.tsv", comment = "//")
+markers_allen <- read_tsv("../../markers/brainspan_RNAseq.tsv", comment = "//")
+settings <- tribble(
+~slot_use, ~remove_0, ~dir_name,
+"scale_data", FALSE, "scale_include_zero",
+"scale_data", TRUE, "scale_remove_zero",
+"data",       FALSE, "data_include_zero",
+"data",       TRUE, "data_remove_zero")
+
+settings <- expand_grid(slot_use = c("scale_data", "data"), 
+                        remove_0 = c("TRUE", "FALSE"), 
+                        scale_violin = c("area", "width", "count")) %>%
+            mutate(dir_name = paste(slot_use, remove_0, scale_violin, sep = "_"))
+
+# -----------------------------------------------------------------------------  
+
+violin_plots <- pmap(.l = settings[11,], 
+                     .f = ~ makeViolin(genes = markers_allen$Symbol,
+                                       slot_use = get(..1), 
+                                       remove_0 = ..2,
+                                       scale_violin = ..3,
+                                       dir_name = ..4,
+                                       plots_per_page = 18))
+  
+  
+patchwork::wrap_plots(violin_plots,ncol = 6, nrow = 3)
+
+# -----------------------------------------------------------------------------  
+
+violin_plots <- pmap(.l = settings, 
+                     .f = ~ makeViolin(slot_use = get(..1), 
+                                       remove_0 = ..2, 
+                                       dir_name = ..3,
+                                       plots_per_page = 24))
+                             
+# -----------------------------------------------------------------------------                
+
+makeViolin <- function(genes, slot_use, remove_0 = FALSE, plots_per_page = 24, 
+                       dir_name, scale_violin) {
+                
+   out_dir <- fs::dir_create(file.path("../out/allen", dir_name))
+   
+   plots_per_page <- plots_per_page
+   
+   violin_plots <- genes %>% 
+                      map(~ quantViolin(gene = ., 
+                                        seurat_object = neocortex_subset, 
+                                        percentile = 0.999, 
+                                        group_by = cortical_area, 
+                                        slot_use = slot_use,
+                                        remove_0 = remove_0,
+                                        scale_violin = scale_violin))
+
+for(i in seq(1, length(violin_plots), plots_per_page)) {
+
+j <- i + (plots_per_page - 1)
+
+if( j >= length(violin_plots)) { j <- length(violin_plots) }
+
+p <- gridExtra::marrangeGrob(grobs = violin_plots[i:j], nrow = 6, ncol = 4)
+
+ggsave(filename = file.path(out_dir, paste0("violin_area_markers_", i, ".png")), plot = p, 
+       width = 16 , height = 12, units = "in", device = "png")
+
+}
+}
+
+# -----------------------------------------------------------------------------  
+
+quantViolin <- function(gene, seurat_object, percentile = 0.99, group_by, slot_use, remove_0 = FALSE, scale_violin) {
+
+group_by = enquo(group_by)
+message(gene)
+expression <- slot_use[ , gene] 
+noise <- rnorm(n = length(expression) / 100000 )
+expression <- expression + noise 
+print(expression)
+
+trim_violin <- TRUE
+
+if(remove_0 == TRUE) { 
+  expression[expression == 0] <- NA
+  trim_violin = FALSE
+}
+
+pr <- percentile
+
+q  <- quantile(expression, c(1 - pr, pr), na.rm = TRUE)
+expression <- squish(expression, q)
+
+
+ 
+#  if (all(data[, feature] == data[, feature][1])) { 
+#    warning(paste0("All cells have the same value of ", feature, ".")) 
+#  } else{ 
+
+#---------------------------------
+
+df <- add_column(seurat_object@meta.data, "expression" = expression)
+plot <- df %>% ggplot(aes(x = !!group_by, y = expression, 
+             colour = !!group_by, fill = !!group_by)) + 
+
+  geom_violin(alpha = 0.2, scale = scale_violin, trim = trim_violin) +
+  ggtitle(gene) +
+    scale_color_manual(aesthetics = c("colour", "fill"), values = colors_area$color) +
+  theme_void() +
+  theme(legend.position = "none")
+
+if (remove_0 == TRUE | (remove_0 == FALSE & sum(expression > 0))) {
+   plot <- plot + geom_jitter(alpha = 0.2,  size = 0.3)
+}
+
+return(plot)
+} 
+
+```
+
